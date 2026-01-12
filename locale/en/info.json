@@ -1,0 +1,9 @@
+{
+  "language-name": "English",
+  "font": {
+    "minesweeper":
+    [
+      "__minesweeper__/fonts/minesweeper.ttf"
+    ]
+  }
+}
