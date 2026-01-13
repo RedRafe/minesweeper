@@ -1,18 +1,4 @@
---[[
-    It's a Minesweeper thingy - MewMew
-
-    Cell Values:
-	-- 1 to 8 = adjacent mines
-	-- 9 = empty cell with grid
-	-- 10 = mine
-	-- 11 = marked mine
-
-]]
---
-
 local Functions = require 'scripts.functions'
--- local Map_score = require 'utils.gui.map_score'
--- local Map = require 'modules.map_info'
 
 local Public = {}
 
@@ -386,14 +372,14 @@ local function add_mines_to_chunk(left_top, distance_to_center)
     end
 
     local shuffle_index = {}
-    for i = 1, size_of_chunk_divide_vectors, 1 do
+    for i = 1, size_of_chunk_divide_vectors do
         table.insert(shuffle_index, i)
     end
     Functions.shuffle_table(shuffle_index)
 
     -- place shuffled mines
     if distance_to_center < 128 then
-        for i = 1, mine_count, 1 do
+        for i = 1, mine_count do
             local vector = chunk_divide_vectors[shuffle_index[i]]
             local position = { x = left_top.x + vector[1], y = left_top.y + vector[2] }
             if not Functions.is_spawn(position) then
@@ -403,7 +389,7 @@ local function add_mines_to_chunk(left_top, distance_to_center)
             end
         end
     else
-        for i = 1, mine_count, 1 do
+        for i = 1, mine_count do
             local vector = chunk_divide_vectors[shuffle_index[i]]
             local position = { x = left_top.x + vector[1], y = left_top.y + vector[2] }
             local key = Functions.position_to_string(position)
@@ -449,8 +435,8 @@ local function on_chunk_generated(event)
     local tiles = {}
 
     if distance_to_center < 128 then
-        for x = 0, 31, 1 do
-            for y = 0, 31, 1 do
+        for x = 0, 31 do
+            for y = 0, 31 do
                 local position = { x = left_top.x + x, y = left_top.y + y }
                 if Functions.is_spawn(position) then
                     table.insert(tiles, { name = Functions.get_terrain_tile(surface, position), position = position })
@@ -460,8 +446,8 @@ local function on_chunk_generated(event)
             end
         end
     else
-        for x = 0, 31, 1 do
-            for y = 0, 31, 1 do
+        for x = 0, 31 do
+            for y = 0, 31 do
                 local position = { x = left_top.x + x, y = left_top.y + y }
                 table.insert(tiles, { name = 'nuclear-ground', position = position })
             end

@@ -7,22 +7,22 @@ local safe_zone_radius = 16
 local ores = {}
 ores[1] = {}
 ores[2] = {}
-for _ = 1, 15, 1 do
+for _ = 1, 15 do
     table.insert(ores[1], 'iron-ore')
 end
-for _ = 1, 9, 1 do
+for _ = 1, 9 do
     table.insert(ores[1], 'coal')
 end
-for _ = 1, 1, 1 do
+for _ = 1, 1 do
     table.insert(ores[1], 'crude-oil')
 end
-for _ = 1, 6, 1 do
+for _ = 1, 6 do
     table.insert(ores[2], 'copper-ore')
 end
-for _ = 1, 4, 1 do
+for _ = 1, 4 do
     table.insert(ores[2], 'stone')
 end
-for _ = 1, 1, 1 do
+for _ = 1, 1 do
     table.insert(ores[2], 'uranium-ore')
 end
 
@@ -42,7 +42,7 @@ local function unstuck_players_around_position(surface, position)
 end
 
 function Public.kaboom(position)
-    local surface = game.surfaces[1]
+    local surface = game.surfaces.nauvis
     local count = surface.count_entities_filtered({
         name = {
             'atomic-bomb-ground-zero-projectile',
