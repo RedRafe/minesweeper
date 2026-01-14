@@ -1,7 +1,7 @@
 local function entity(params)
     return {
         type = 'simple-entity',
-        name = params.name,
+        name = 'minesweeper-'..params.name,
         collision_box = {
             left_top = { -0.9, -0.9 },
             right_bottom = { 0.9, 0.9 }
@@ -21,7 +21,9 @@ local function entity(params)
         subgroup = 'minesweeper',
         collision_mask = { layers = {} },
         render_layer = 'above-tiles',
+        selection_priority = 10,
         build_grid_size = 2,
+        localised_name = { 'entity-name.'..params.name }
     }
 end
 
