@@ -425,7 +425,7 @@ Gui.on_click(top_button_name, function(event)
         event.element.sprite = 'entity.minesweeper-' .. sprite
         event.element.tooltip = { 'msw.main_button_tooltip' .. suffix }
 
-        update_left_gui(event.player)
+        update_top_gui(event.player)
     end
 end)
 
