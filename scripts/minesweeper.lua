@@ -15,6 +15,7 @@ local TILE_FLAGGED  = Const.TILE_FLAGGED
 local TILE_HIDDEN   = Const.TILE_HIDDEN
 local TILE_MINE     = Const.TILE_MINE
 local TILE_SCALE    = Const.TILE_SCALE
+local TOOL_NAME     = Const.TOOL_NAME
 
 ---------------------------------------------------------
 -- STATE
@@ -211,6 +212,29 @@ local function flood_fill(x, y, surface, player_index)
     end
 
     return revealed
+end
+
+---------------------------------------------------------
+-- CUSTOM INPUT HANDLING
+---------------------------------------------------------
+
+local function validate_custom_input(event)
+    local player = game.get_player(event.player_index)
+    local cursor = player.cursor_stack
+    if not (cursor and cursor.valid_for_read) then
+        return
+    end
+    
+    if cursor.name ~= TOOL_NAME then
+        return
+    end
+    
+    local selected = player.selected
+    if not (selected and selected.valid and selected.force and selected.force.name == FORCE_NAME) then
+        return
+    end
+
+    return selected
 end
 
 ---------------------------------------------------------
@@ -435,21 +459,23 @@ end
 ---------------------------------------------------------
 
 local function on_player_changed_position(event)
-    local p = game.get_player(event.player_index)
-    if not p or p.controller_type ~= defines.controllers.character then return end
+    local player = game.get_player(event.player_index)
+    if not player or player.controller_type ~= defines.controllers.character then
+        return
+    end
 
     -- Engine tile coordinates
-    local ex, ey = factorio_to_engine_tile(p.position)
-    local s = p.surface
+    local ex, ey = factorio_to_engine_tile(player.physical_position)
+    local surface = player.surface
 
     -- Reveal the tile the player is on
-    Msw.reveal(s, ex, ey, p.index)
+    Msw.reveal(surface, ex, ey, event.player_index)
 
     -- Attempt chording around the player
-    Msw.chord(s, ex, ey, p.index)
+    Msw.chord(surface, ex, ey, event.player_index)
 
     -- Show debug tiles around player
-    show_player_surroundings(s, ex, ey, p.index)
+    show_player_surroundings(surface, ex, ey, event.player_index)
 end
 
 local function on_built_entity(event)
@@ -457,9 +483,19 @@ local function on_built_entity(event)
     if not entity or not entity.valid or entity.name ~= 'stone-furnace' then
         return
     end
+
+    -- Engine tile coordinates
     local ex, ey = factorio_to_engine_tile(entity.position)
-    Msw.flag(entity.surface, ex, ey, event.player_index)
+    local surface = entity.surface
+
+    -- Flag the current position
+    Msw.flag(surface, ex, ey, event.player_index)
+
+    -- Destroy dummy marker
     entity.destroy { raise_destroy = false }
+
+    -- Show debug tiles around player
+    show_player_surroundings(surface, ex, ey, event.player_index)
 end
 
 local function on_chunk_generated(event)
@@ -485,6 +521,43 @@ local function on_nth_tick()
     end
 end
 
+local function on_reveal_tile(event)
+    local entity = validate_custom_input(event)
+    if not entity then
+        return
+    end
+
+    -- Engine tile coordinates
+    local ex, ey = factorio_to_engine_tile(entity.position)
+    local surface = entity.surface
+
+    -- Reveal the tile the player is on
+    Msw.reveal(surface, ex, ey, event.player_index)
+
+    -- Attempt chording around the player
+    Msw.chord(surface, ex, ey, event.player_index)
+
+    -- Show debug tiles around player
+    show_player_surroundings(surface, ex, ey, event.player_index)
+end
+
+local function on_flag_tile(event)
+    local entity = validate_custom_input(event)
+    if not entity then
+        return
+    end
+
+    -- Engine tile coordinates
+    local ex, ey = factorio_to_engine_tile(entity.position)
+    local surface = entity.surface
+
+    -- Flag the current position
+    Msw.flag(surface, ex, ey, event.player_index)
+
+    -- Show debug tiles around player
+    show_player_surroundings(surface, ex, ey, event.player_index)
+end
+
 ---------------------------------------------------------
 -- EXPORTS
 ---------------------------------------------------------
@@ -502,6 +575,8 @@ Msw.events = {
     [defines.events.on_player_changed_position] = on_player_changed_position,
     [defines.events.on_built_entity]            = on_built_entity,
     [defines.events.on_chunk_generated]         = on_chunk_generated,
+    [Const.CI_REVEAL_TILE]                      = on_reveal_tile,
+    [Const.CI_FLAG_TILE]                        = on_flag_tile,
 }
 
 Msw.on_nth_tick = {

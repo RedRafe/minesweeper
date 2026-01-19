@@ -15,19 +15,23 @@ mgs.autoplace_settings.tile = {
     settings = {
         ['nuclear-ground'] = {},
         --['water-shallow'] = {},
-        --['grass-1'] = {},
         --['sand-1'] = {},
-        --['grass-2'] = {},
         --['sand-2'] = {},
-        --['grass-3'] = {},
         --['sand-3'] = {},
+        --['grass-1'] = {},
+        --['grass-2'] = {},
+        --['grass-3'] = {},
     },
 }
 
 for i, name in pairs({
     'water-shallow',
-    'sand-1', 'sand-2', 'sand-3',
-    'grass-1', 'grass-2', 'grass-3'
+    'sand-1',
+    'sand-2',
+    'sand-3',
+    'grass-1',
+    'grass-2',
+    'grass-3'
 }) do
     local expression_name = 'ms_ne_'..i
     data.raw.tile[name].autoplace = { probability_expression = expression_name }

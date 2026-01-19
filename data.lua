@@ -1,3 +1,4 @@
+require 'prototypes.custom-input'
 require 'prototypes.font'
 require 'prototypes.entity'
 require 'prototypes.event'

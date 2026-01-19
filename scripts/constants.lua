@@ -1,5 +1,11 @@
 local Public = {}
 
+-- Shared with prototypes
+Public.TOOL_NAME      = 'minesweeper-tool'
+Public.KEYBIND_NAME   = 'minesweeper-give-tool'
+Public.CI_REVEAL_TILE = 'minesweeper-reveal-tile'
+Public.CI_FLAG_TILE   = 'minesweeper-flag-tile'
+
 -- Tile enums
 -- 0-8: revealed tile with that many adjacent mines
 -- 9: hidden / unknown tile
@@ -15,6 +21,12 @@ Public.TILE_EXPLODED = 12
 Public.TILE_SCALE = 2 -- 1 MSW tile = 2x2 Factorio tiles
 Public.FORCE_NAME = 'minesweeper'
 
+Public.ADJ = {
+    {-1,-1},{0,-1},{1,-1},
+    {-1, 0},       {1, 0},
+    {-1, 1},{0, 1},{1, 1}
+}
+
 Public.TILE_ENTITIES = {
     [0] = 'minesweeper-tile-empty',
     [1] = 'minesweeper-1',
@@ -29,12 +41,6 @@ Public.TILE_ENTITIES = {
     [Public.TILE_FLAGGED]  = 'minesweeper-flag',
     [Public.TILE_MINE]     = 'minesweeper-mine',
     [Public.TILE_EXPLODED] = 'minesweeper-mine-explosion',
-}
-
-Public.ADJ = {
-    {-1,-1},{0,-1},{1,-1},
-    {-1, 0},       {1, 0},
-    {-1, 1},{0, 1},{1, 1}
 }
 
 Public.POINTS = {

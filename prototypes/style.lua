@@ -1,5 +1,11 @@
 local styles = data.raw['gui-style'].default
 
+styles.minesweeper_label = {
+    type = 'label_style',
+    parent = 'label',
+    font = 'minesweeper',
+}
+
 styles.scoreboard_table = {
     type = 'table_style',
     parent = 'finished_game_table',
@@ -11,12 +17,6 @@ styles.scoreboard_table = {
         { column = 5, alignment = 'middle-center' },
         { column = 6, alignment = 'middle-center' },
     },
-}
-
-styles.minesweeper_label = {
-    type = 'label_style',
-    parent = 'label',
-    font = 'minesweeper',
 }
 
 styles.sort_button = {

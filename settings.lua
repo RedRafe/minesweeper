@@ -9,7 +9,7 @@ data:extend {
         type = 'bool-setting',
         name = 'minesweeper-debug-area-simple',
         setting_type = 'runtime-per-user',
-        default_value = false,
+        default_value = true,
         order = 'a',
     },
     {
