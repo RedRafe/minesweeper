@@ -1,6 +1,6 @@
 local function entity(params)
     return {
-        type = 'simple-entity',
+        type = 'simple-entity-with-force',
         name = 'minesweeper-'..params.name,
         collision_box = {
             left_top = { -0.9, -0.9 },
@@ -23,7 +23,10 @@ local function entity(params)
         render_layer = 'above-tiles',
         selection_priority = 10,
         build_grid_size = 2,
-        localised_name = { 'entity-name.'..params.name }
+        localised_name = { 'entity-name.'..params.name },
+        map_color = { 255, 255, 255, 0 },
+        friendly_map_color = { 255, 255, 255, 0 },
+        enemy_map_color = { 255, 255, 255, 0 },
     }
 end
 
@@ -43,6 +46,7 @@ data:extend{
     entity{ name = '8' },
     entity{ name = 'mine' },
     entity{ name = 'defeat' },
+    entity{ name = 'exploded' },
     entity{ name = 'mine-explosion' },
     entity{ name = 'flag' },
     entity{ name = 'smile' },
@@ -50,5 +54,6 @@ data:extend{
     entity{ name = 'surprise' },
     entity{ name = 'tile-empty' },
     entity{ name = 'tile' },
+    entity{ name = 'trophy' },
     entity{ name = 'unknown' },
 }

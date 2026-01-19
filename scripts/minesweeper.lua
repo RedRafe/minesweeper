@@ -1,4 +1,5 @@
 local Queue = require 'scripts.queue'
+local Const = require 'scripts.constants'
 
 local Msw = {}
 
@@ -6,41 +7,14 @@ local Msw = {}
 -- CONFIG / ENUMS
 ---------------------------------------------------------
 
--- Tile enums
--- 0-8: revealed tile with that many adjacent mines
--- 9: hidden / unknown tile
--- 10: flagged
--- 11: revealed mine
--- 12: exploded mine
-
-local TILE_HIDDEN   = 9
-local TILE_FLAGGED  = 10
-local TILE_MINE     = 11
-local TILE_EXPLODED = 12
-
-local TILE_SCALE = 2 -- 1 MSW tile = 2x2 Factorio tiles
-
-local TILE_ENTITIES = {
-    [0] = 'minesweeper-tile-empty',
-    [1] = 'minesweeper-1',
-    [2] = 'minesweeper-2',
-    [3] = 'minesweeper-3',
-    [4] = 'minesweeper-4',
-    [5] = 'minesweeper-5',
-    [6] = 'minesweeper-6',
-    [7] = 'minesweeper-7',
-    [8] = 'minesweeper-8',
-    [TILE_HIDDEN]   = 'minesweeper-tile',
-    [TILE_FLAGGED]  = 'minesweeper-flag',
-    [TILE_MINE]     = 'minesweeper-mine',
-    [TILE_EXPLODED] = 'minesweeper-mine-explosion',
-}
-
-local ADJ = {
-    {-1,-1},{0,-1},{1,-1},
-    {-1, 0},       {1, 0},
-    {-1, 1},{0, 1},{1, 1}
-}
+local ADJ           = Const.ADJ
+local FORCE_NAME    = Const.FORCE_NAME
+local TILE_ENTITIES = Const.TILE_ENTITIES
+local TILE_EXPLODED = Const.TILE_EXPLODED
+local TILE_FLAGGED  = Const.TILE_FLAGGED
+local TILE_HIDDEN   = Const.TILE_HIDDEN
+local TILE_MINE     = Const.TILE_MINE
+local TILE_SCALE    = Const.TILE_SCALE
 
 ---------------------------------------------------------
 -- STATE
@@ -50,14 +24,7 @@ local processor_queue = Queue.new()
 
 local tiles = {}           -- tiles['x_y'] = enum
 local archived_chunks = {} -- archived chunks
-local global_stats = {
-    tiles_revealed = 0,
-    mines_marked   = 0,
-    mines_exploded = 0,
-}
-local player_stats = {}    -- [player_index] = stats
 local renders = {}
-
 local this = { seed = 12345 }
 local CHUNK = 32
 
@@ -65,7 +32,7 @@ local CHUNK = 32
 -- STORAGE
 ---------------------------------------------------------
 
-function Msw.on_init()
+function init_storage()
     storage.minesweeper = {
         this = this,
         tiles = tiles,
@@ -77,7 +44,7 @@ function Msw.on_init()
     }
 end
 
-function Msw.on_load()
+function load_storage()
     local tbl = storage.minesweeper
     this = tbl.this
     tiles = tbl.tiles
@@ -102,28 +69,31 @@ local pairs      = pairs
 local ipairs     = ipairs
 local tonumber   = tonumber
 
+local EXPLOSIONS = {
+    'atomic-bomb-ground-zero-projectile',
+    'atomic-bomb-wave',
+    'atomic-bomb-wave-spawns-cluster-nuke-explosion',
+    'atomic-bomb-wave-spawns-fire-smoke-explosion',
+    'atomic-bomb-wave-spawns-nuclear-smoke',
+    'atomic-bomb-wave-spawns-nuke-shockwave-explosion',
+    'atomic-rocket'
+}
+
 local function tile_key(x, y) return x .. '_' .. y end
 local function chunk_key(cx, cy) return cx .. ',' .. cy end
 local function get_chunk_of(x, y) return math_floor(x / CHUNK), math_floor(y / CHUNK) end
 
+local function factorio_to_engine_tile(pos)
+    return math_floor(pos.x / TILE_SCALE), math_floor(pos.y / TILE_SCALE)
+end
+
+local function engine_to_factorio_tile(ex, ey)
+    return { x = ex * TILE_SCALE + TILE_SCALE / 2, y = ey * TILE_SCALE + TILE_SCALE / 2 }
+end
+
 local function is_archived(x, y)
     local cx, cy = get_chunk_of(x, y)
     return archived_chunks[chunk_key(cx, cy)] == true
-end
-
-local function get_player_stats(player_index)
-    local ps = player_stats[player_index]
-    if ps then
-        return ps
-    end
-    ps = {
-        tiles_revealed = 0,
-        mines_marked   = 0,
-        mines_exploded = 0,
-        score          = 0,
-    }
-    player_stats[player_index] = ps
-    return ps
 end
 
 local function key_to_xy(k)
@@ -172,6 +142,17 @@ local function is_revealed(x, y)
     return (val >= 0 and val <= 8) or val == TILE_MINE or val == TILE_EXPLODED
 end
 
+local function explosion(surface, position)
+	if surface.count_entities_filtered({ name = EXPLOSIONS, radius = 6, limit = 1 }) > 0 then return end
+	surface.create_entity{
+        name = 'atomic-rocket',
+        position = { position.x + 1, position.y + 1 },
+        target = { position.x + 1, position.y + 1 },
+        speed = 1,
+        force = FORCE_NAME,
+    }
+end
+
 ---------------------------------------------------------
 -- ADJACENT MINES
 ---------------------------------------------------------
@@ -214,15 +195,7 @@ local function flood_fill(x, y, surface, player_index)
         if not is_revealed(cx, cy) then
             local adj = adjacent_mines(cx, cy)
             set_tile_enum(cx, cy, adj)
-            revealed[#revealed+1] = {x=cx, y=cy}
-
-            global_stats.tiles_revealed = global_stats.tiles_revealed + 1
-            if player_index then
-                local ps = get_player_stats(player_index)
-                ps.tiles_revealed = ps.tiles_revealed + 1
-                ps.score = ps.score + 1
-            end
-
+            revealed[#revealed+1] = { x = cx, y = cy }
             Msw.queue_update_tile_entity(surface, cx, cy)
         end
 
@@ -252,28 +225,11 @@ function Msw.reveal(surface, ex, ey, player_index)
 
     if has_mine(ex, ey) then
         set_tile_enum(ex, ey, TILE_EXPLODED)
-        revealed_tiles[#revealed_tiles+1] = {x=ex, y=ey}
-        global_stats.mines_exploded = global_stats.mines_exploded + 1
-        if player_index then
-            local ps = get_player_stats(player_index)
-            ps.mines_exploded = ps.mines_exploded + 1
-            ps.score = ps.score - 10
-        end
-
-        Msw.queue_update_tile_entity(surface, ex, ey)
-
+        revealed_tiles[#revealed_tiles+1] = { x = ex, y = ey }
     else
         local adj = adjacent_mines(ex, ey)
         set_tile_enum(ex, ey, adj)
-        revealed_tiles[#revealed_tiles+1] = {x=ex, y=ey}
-        global_stats.tiles_revealed = global_stats.tiles_revealed + 1
-        if player_index then
-            local ps = get_player_stats(player_index)
-            ps.tiles_revealed = ps.tiles_revealed + 1
-            ps.score = ps.score + 1
-        end
-
-        Msw.queue_update_tile_entity(surface, ex, ey)
+        revealed_tiles[#revealed_tiles+1] = { x = ex, y = ey }
 
         if adj == 0 then
             local ff_tiles = flood_fill(ex, ey, surface, player_index)
@@ -283,6 +239,22 @@ function Msw.reveal(surface, ex, ey, player_index)
         end
     end
 
+    Msw.update_tile_entity(surface, ex, ey)
+
+    -- Broadcast event
+    local tiles = {}
+    for _, t in pairs(revealed_tiles) do
+        tiles[#tiles + 1] = { position = engine_to_factorio_tile(t.x, t.y), type = get_tile_enum(t.x, t.y) }
+    end
+
+    script.raise_event(defines.events.on_tile_revealed, {
+        tick = game.tick,
+        name = defines.events.on_tile_revealed,
+        player_index = player_index,
+        surface_index = surface.index,
+        tiles = tiles,
+    })
+
     return revealed_tiles
 end
 
@@ -291,30 +263,29 @@ end
 ---------------------------------------------------------
 
 function Msw.flag(surface, ex, ey, player_index)
-    if is_archived(ex, ey) then
-        return
-    end
-    if is_revealed(ex, ey) then
-        return
-    end
+    if is_archived(ex, ey) then return end
+    if is_revealed(ex, ey) then return end
 
-    local val = get_tile_enum(ex, ey)
-    if val == TILE_FLAGGED then
+    if get_tile_enum(ex, ey) == TILE_FLAGGED then
         set_tile_enum(ex, ey, TILE_HIDDEN)
-        return false
     else
         set_tile_enum(ex, ey, TILE_FLAGGED)
+
         if has_mine(ex, ey) then
-            global_stats.mines_marked = global_stats.mines_marked + 1
-            if player_index then
-                local ps = get_player_stats(player_index)
-                ps.mines_marked = ps.mines_marked + 1
-                ps.score = ps.score + 5
-            end
+            -- do stuff???
         end
-        Msw.update_tile_entity(surface, ex, ey)
-        return true
     end
+
+    Msw.update_tile_entity(surface, ex, ey)
+
+    -- Broadcast event
+    script.raise_event(defines.events.on_tile_revealed, {
+        tick = game.tick,
+        name = defines.events.on_tile_revealed,
+        player_index = player_index,
+        surface_index = surface.index,
+        tiles = {{ position = engine_to_factorio_tile(ex, ey), type = get_tile_enum(ex, ey) }},
+    })
 end
 
 ---------------------------------------------------------
@@ -361,20 +332,12 @@ end
 -- ENTITY DISPLAY
 ---------------------------------------------------------
 
-local function factorio_to_engine_tile(pos)
-    return math_floor(pos.x / TILE_SCALE), math_floor(pos.y / TILE_SCALE)
-end
-
-local function engine_to_factorio_tile(ex, ey)
-    return { x = ex * TILE_SCALE + TILE_SCALE / 2, y = ey * TILE_SCALE + TILE_SCALE / 2 }
-end
-
 local function destroy_existing(surface, ex, ey)
     local area = {
         { ex * TILE_SCALE, ey * TILE_SCALE },
         { ex * TILE_SCALE + TILE_SCALE, ey * TILE_SCALE + TILE_SCALE },
     }
-    for _, e in ipairs(surface.find_entities_filtered{ area = area, force = 'neutral' }) do
+    for _, e in ipairs(surface.find_entities_filtered{ area = area, force = FORCE_NAME, type = 'simple-entity-with-force' }) do
         e.destroy()
     end
 end
@@ -384,7 +347,7 @@ function Msw.update_tile_entity(surface, ex, ey)
     destroy_existing(surface, ex, ey)
     local proto = TILE_ENTITIES[val] or TILE_ENTITIES[TILE_HIDDEN]
     local pos = engine_to_factorio_tile(ex, ey)
-    local entity = surface.create_entity { name = proto, position = pos, force = 'neutral' }
+    local entity = surface.create_entity { name = proto, position = pos, force = FORCE_NAME }
     if entity then
         entity.destructible = false
         entity.minable = false
@@ -489,7 +452,6 @@ local function on_player_changed_position(event)
     show_player_surroundings(s, ex, ey, p.index)
 end
 
-
 local function on_built_entity(event)
     local entity = event.entity
     if not entity or not entity.valid or entity.name ~= 'stone-furnace' then
@@ -526,6 +488,15 @@ end
 ---------------------------------------------------------
 -- EXPORTS
 ---------------------------------------------------------
+
+Msw.on_init = function()
+    init_storage()
+    if not game.forces[FORCE_NAME] then
+        game.create_force(FORCE_NAME)
+    end
+end
+
+Msw.on_load = load_storage
 
 Msw.events = {
     [defines.events.on_player_changed_position] = on_player_changed_position,

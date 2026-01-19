@@ -1,8 +1,8 @@
-data:extend{
+data:extend {
     {
         type = 'font',
         name = 'minesweeper',
         from = 'minesweeper',
-        size = 14,
-    }
+        size = 10, --14
+    },
 }
