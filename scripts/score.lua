@@ -75,27 +75,9 @@ end
 -- STYLE
 ---------------------------------------------------------
 
-local function bold(parent, caption, color)
-    local label = parent.add { type = 'label', style = 'bold_label', caption = caption }
-    if color then
-        label.style.font_color = color
-    end
-    return label
-end
-
-local function empty(parent)
-    return parent.add { type = 'empty-widget' }
-end
-
-local function inline(parent)
-    local flow = parent.add { type = 'flow', direction = 'horizontal' }
-    Gui.set_style(flow, { vertical_align = 'center' })
-    return flow
-end
-
 local function sort_button(parent, params, settings)
-    local flow = inline(parent)
-    Gui.set_style(flow, { horizontal_spacing = 4 })
+    local flow = parent.add { type = 'flow', direction = 'horizontal' }
+    Gui.set_style(flow, { vertical_align = 'center', horizontal_spacing = 4 })
 
     local button = flow.add {
         type = 'button',
@@ -149,8 +131,9 @@ local function get_player_settings(player_index)
     return ps
 end
 
+---@param element LuaGuiElement
 local function get_previous_state(element)
-    local state = { true, true, true, true, true } -- default states
+    local state = { true, true, true, true, true }
 
     local children = element.children
     if #children > 0 then
@@ -159,7 +142,7 @@ local function get_previous_state(element)
         local max_cols = grid.column_count - 1
 
         for i = 1, max_cols do
-            local sort_cell = grid_children[i + 1]  -- first column is '#'
+            local sort_cell = grid_children[i + 1]
             if sort_cell then
                 local button = sort_cell.children[1]
                 if button then
@@ -182,26 +165,26 @@ end
 
 local function get_scoreboard_data()
     local scoreboard = {
-        { name = 'George', score = 27, tiles_revealed = 12000, mines_marked = 24, mines_exploded = 27, color = {255, 255, 255} },
-        { name = 'Alice', score = 45, tiles_revealed = 15000, mines_marked = 30, mines_exploded = 2, color = {255, 0, 0} },
-        { name = 'Bob', score = 33, tiles_revealed = 13000, mines_marked = 25, mines_exploded = 5, color = {0, 255, 0} },
-        { name = 'Carol', score = 50, tiles_revealed = 16000, mines_marked = 35, mines_exploded = 1, color = {0, 0, 255} },
-        { name = 'Dave', score = 22, tiles_revealed = 12500, mines_marked = 20, mines_exploded = 10, color = {255, 255, 0} },
-        { name = 'Eve', score = 60, tiles_revealed = 17000, mines_marked = 40, mines_exploded = 0, color = {255, 0, 255} },
-        { name = 'Frank', score = 19, tiles_revealed = 11000, mines_marked = 15, mines_exploded = 15, color = {0, 255, 255} },
-        { name = 'Grace', score = 40, tiles_revealed = 14000, mines_marked = 28, mines_exploded = 3, color = {128, 128, 128} },
-        { name = 'Hank', score = 55, tiles_revealed = 16500, mines_marked = 38, mines_exploded = 2, color = {75, 0, 130} },
-        { name = 'Ivy', score = 28, tiles_revealed = 12800, mines_marked = 22, mines_exploded = 8, color = {255, 165, 0} },
-        { name = 'Jack', score = 48, tiles_revealed = 15500, mines_marked = 33, mines_exploded = 4, color = {0, 128, 128} },
-        { name = 'Kara', score = 35, tiles_revealed = 14500, mines_marked = 26, mines_exploded = 6, color = {255, 192, 203} },
-        { name = 'Leo', score = 42, tiles_revealed = 15200, mines_marked = 29, mines_exploded = 2, color = {173, 216, 230} },
-        { name = 'Mia', score = 25, tiles_revealed = 12050, mines_marked = 19, mines_exploded = 12, color = {240, 230, 140} },
-        { name = 'Nina', score = 52, tiles_revealed = 16200, mines_marked = 36, mines_exploded = 1, color = {255, 140, 0} },
-        { name = 'Oscar', score = 37, tiles_revealed = 14800, mines_marked = 27, mines_exploded = 7, color = {0, 100, 0} },
-        { name = 'Paul', score = 31, tiles_revealed = 13800, mines_marked = 23, mines_exploded = 9, color = {139, 69, 19} },
-        { name = 'Quinn', score = 46, tiles_revealed = 15800, mines_marked = 32, mines_exploded = 3, color = {75, 0, 130} },
-        { name = 'Rachel', score = 29, tiles_revealed = 12400, mines_marked = 20, mines_exploded = 11, color = {255, 105, 180} },
-        { name = 'Sam', score = 54, tiles_revealed = 16800, mines_marked = 37, mines_exploded = 2, color = {0, 0, 0} },
+        { name = 'George', score = 27, tiles_revealed = 12000, mines_marked = 24, mines_exploded = 27, color = { 255, 255, 255 } },
+        { name = 'Alice',  score = 45, tiles_revealed = 15000, mines_marked = 30, mines_exploded =  2, color = { 255,   0,   0 } },
+        { name = 'Bob',    score = 33, tiles_revealed = 13000, mines_marked = 25, mines_exploded =  5, color = {   0, 255,   0 } },
+        { name = 'Carol',  score = 50, tiles_revealed = 16000, mines_marked = 35, mines_exploded =  1, color = {   0,   0, 255 } },
+        { name = 'Dave',   score = 22, tiles_revealed = 12500, mines_marked = 20, mines_exploded = 10, color = { 255, 255,   0 } },
+        { name = 'Eve',    score = 60, tiles_revealed = 17000, mines_marked = 40, mines_exploded =  0, color = { 255,   0, 255 } },
+        { name = 'Frank',  score = 19, tiles_revealed = 11000, mines_marked = 15, mines_exploded = 15, color = {   0, 255, 255 } },
+        { name = 'Grace',  score = 40, tiles_revealed = 14000, mines_marked = 28, mines_exploded =  3, color = { 128, 128, 128 } },
+        { name = 'Hank',   score = 55, tiles_revealed = 16500, mines_marked = 38, mines_exploded =  2, color = {  75,   0, 130 } },
+        { name = 'Ivy',    score = 28, tiles_revealed = 12800, mines_marked = 22, mines_exploded =  8, color = { 255, 165,   0 } },
+        { name = 'Jack',   score = 48, tiles_revealed = 15500, mines_marked = 33, mines_exploded =  4, color = {   0, 128, 128 } },
+        { name = 'Kara',   score = 35, tiles_revealed = 14500, mines_marked = 26, mines_exploded =  6, color = { 255, 192, 203 } },
+        { name = 'Leo',    score = 42, tiles_revealed = 15200, mines_marked = 29, mines_exploded =  2, color = { 173, 216, 230 } },
+        { name = 'Mia',    score = 25, tiles_revealed = 12050, mines_marked = 19, mines_exploded = 12, color = { 240, 230, 140 } },
+        { name = 'Nina',   score = 52, tiles_revealed = 16200, mines_marked = 36, mines_exploded =  1, color = { 255, 140,   0 } },
+        { name = 'Oscar',  score = 37, tiles_revealed = 14800, mines_marked = 27, mines_exploded =  7, color = {   0, 100,   0 } },
+        { name = 'Paul',   score = 31, tiles_revealed = 13800, mines_marked = 23, mines_exploded =  9, color = { 139,  69,  19 } },
+        { name = 'Quinn',  score = 46, tiles_revealed = 15800, mines_marked = 32, mines_exploded =  3, color = {  75,   0, 130 } },
+        { name = 'Rachel', score = 29, tiles_revealed = 12400, mines_marked = 20, mines_exploded = 11, color = { 255, 105, 180 } },
+        { name = 'Sam',    score = 54, tiles_revealed = 16800, mines_marked = 37, mines_exploded =  2, color = {   0,   0,   0 } },
     }
 
     for player_index, ps in pairs(player_stats) do
@@ -255,7 +238,6 @@ local function draw_top_gui(player)
         direction = 'horizontal',
     }
     
-    frame.location = { x = 1, y = 40 }
     frame.visible = false
 	Gui.set_style(frame, { natural_height = 40, height = 40, padding = 0 })
     Gui.set_data(button, frame)
@@ -267,22 +249,6 @@ local function draw_top_gui(player)
         end
     end
     frame.player.visible = false
-end
-
-local function draw_left_gui(player)
-    local flow = Gui.get_left_flow(player)
-    local frame = flow.add {
-        type = 'frame',
-        name = left_frame_name,
-        use_header_filler = false,
-    }
-
-    local window = frame
-        .add { type = 'frame', style = 'inside_shallow_frame' }
-        .add { type = 'scroll-pane', style = 'naked_scroll_pane', horizontal_scroll_policy = 'never', vertical_scroll_policy = 'auto' }
-    Gui.set_style(window, { maximal_height = 320, padding = 4 })
-
-    Gui.set_data(frame, window)
 end
 
 local function update_left_gui(player)
@@ -339,6 +305,23 @@ local function update_left_gui(player)
             scoreboard.add { type = 'label', caption = entry.mines_exploded, tooltip = entry.mines_exploded }
         end
     end
+end
+
+local function draw_left_gui(player)
+    local flow = Gui.get_left_flow(player)
+    local frame = flow.add {
+        type = 'frame',
+        name = left_frame_name,
+        use_header_filler = false,
+    }
+    frame.visible = false
+
+    local window = frame
+        .add { type = 'frame', style = 'inside_shallow_frame' }
+        .add { type = 'scroll-pane', style = 'naked_scroll_pane', horizontal_scroll_policy = 'never', vertical_scroll_policy = 'auto' }
+    Gui.set_style(window, { maximal_height = 320, padding = 4 })
+
+    Gui.set_data(frame, window)
 end
 
 local function init_player(player)
@@ -452,18 +435,19 @@ Gui.on_click(sort_button_tag, function(event)
         button = button.parent.children[1]
     end
 
-    local tags = button.tags
+    local old_tags = button.tags
     local settings = get_player_settings(event.player_index)
-    if settings.key == tags.key then
+
+    if settings.key == old_tags.key then
         -- Same key, change sort order
         button.tags = {
-            [Gui.tag] = tags[Gui.tag],
-            key = tags.key,
-            descending = not tags.descending,
+            [Gui.tag]  = old_tags[Gui.tag],
+            descending = not old_tags.descending,
+            key        = old_tags.key,
         }
     else
-        -- Different key, change key (but maintain its own order)
-        settings.key = tags.key
+        -- Different key, change key (but maintain its own sorting)
+        settings.key = old_tags.key
     end
 
     settings.descending = button.tags.descending
@@ -484,11 +468,9 @@ end
 Score.on_load = load_storage
 
 Score.events = {
-    [defines.events.on_player_created] = on_player_created,
-    [defines.events.on_tile_revealed]  = on_tile_revealed,
+    [defines.events.on_player_created]     = on_player_created,
+    [defines.events.on_tile_revealed]      = on_tile_revealed,
     [defines.events.on_player_joined_game] = on_player_joined_game,
 }
 
 return Score
-
---/c for name in pairs(prototypes.font) do game.print(name..': [font='..name..']▼[/font]') end
