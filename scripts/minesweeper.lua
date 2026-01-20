@@ -1,5 +1,6 @@
 local Const = require 'scripts.constants'
 local Queue = require 'scripts.queue'
+local Terrain = require 'scripts.terrain'
 
 local Msw = {}
 

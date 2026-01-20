@@ -1,5 +1,5 @@
-local Gui = require 'scripts.gui'
 local Const = require 'scripts.constants'
+local Gui = require 'scripts.gui'
 
 local Score = {}
 

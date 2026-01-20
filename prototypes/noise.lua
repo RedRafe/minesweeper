@@ -89,5 +89,12 @@ data:extend {
             -- Grass bucket in 0–2 → maps to 5–7
             grass_bucket = 'floor(sm_q % 3) + 5',
         }
+    },
+    {
+        type = 'noise-expression',
+        name = 'ms_tile_dictionary_nauvis',
+        expression = 'ms_tile_dictionary(x,y)',
     }
 }
+
+data.raw.planet.nauvis.map_gen_settings.property_expression_names.ms_tile_dictionary_nauvis = 'ms_tile_dictionary_nauvis'

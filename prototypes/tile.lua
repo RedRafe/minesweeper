@@ -1,6 +1,6 @@
--- ================================================
+---------------------------------------------------------
 -- Autoplace driven by ms_tile_dictionary noise exp
--- ================================================
+---------------------------------------------------------
 
 local mgs = data.raw.planet.nauvis.map_gen_settings
 local property_expression_names = mgs.property_expression_names
@@ -42,16 +42,4 @@ for i, name in pairs({
         type = 'noise-expression',
         expression = ('(ms_tile_dictionary(x, y) == %d)'):format(i)
     }})
-end
-
--- Remove ores & enemies from map gen
-for name, ac in pairs(data.raw['autoplace-control']) do
-    if ac.category == 'resource' or ac.category == 'enemy' then
-        mgs.autoplace_controls[name] = nil
-        ac.hidden = ac.category ~= 'enemy'
-    end
-end
-
-for name, _ in pairs(data.raw.resource) do
-    mgs.autoplace_settings.entity.settings[name] = nil
 end
