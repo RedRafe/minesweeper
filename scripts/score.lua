@@ -75,6 +75,10 @@ end
 -- STYLE
 ---------------------------------------------------------
 
+---@param parent LuaGuiElement
+---@param params table
+---@param settings table
+---@return LuaGuiElement
 local function sort_button(parent, params, settings)
     local flow = parent.add { type = 'flow', direction = 'horizontal' }
     Gui.set_style(flow, { vertical_align = 'center', horizontal_spacing = 4 })
@@ -102,6 +106,8 @@ end
 -- UTILS
 ---------------------------------------------------------
 
+---@param player_index number
+---@return table<tiles_revealed: number, mines_marked: number, mines_exploded: number, score: number>
 local function get_player_stats(player_index)
     local ps = player_stats[player_index]
     if ps then
@@ -117,6 +123,8 @@ local function get_player_stats(player_index)
     return ps
 end
 
+---@param player_index number
+---@return table<advanced: boolean, key: string, descending: boolean>
 local function get_player_settings(player_index)
     local ps = player_settings[player_index]
     if ps then
@@ -132,6 +140,7 @@ local function get_player_settings(player_index)
 end
 
 ---@param element LuaGuiElement
+---@return table<boolean>
 local function get_previous_state(element)
     local state = { true, true, true, true, true }
 
@@ -155,14 +164,19 @@ local function get_previous_state(element)
     return state
 end
 
+---@param key string
+---@return function(a,b)
 local function ascending(key)
     return function(a, b) return a[key] < b[key] end
 end
 
+---@param key string
+---@return function(a,b)
 local function descending(key)
     return function(a, b) return a[key] > b[key] end
 end
 
+---@return table<{name: string, score: number, tiles_revealed: number, mines_marked: number, mines_exploded: number, color: Color}>
 local function get_scoreboard_data()
     local scoreboard = {
         { name = 'George', score = 27, tiles_revealed = 12000, mines_marked = 24, mines_exploded = 27, color = { 255, 255, 255 } },
@@ -202,6 +216,7 @@ local function get_scoreboard_data()
     return scoreboard
 end
 
+---@param player LuaPlayer
 local function update_top_gui(player)
     local frame = Gui.get_top_element(player, top_frame_name)
     if not (frame and frame.valid and frame.visible) then
@@ -223,6 +238,7 @@ local function update_top_gui(player)
     end
 end
 
+---@param player LuaPlayer
 local function draw_top_gui(player)
     local flow = Gui.get_top_flow(player)
     local button = flow.add {
@@ -251,6 +267,7 @@ local function draw_top_gui(player)
     frame.player.visible = false
 end
 
+---@param player LuaPlayer
 local function update_left_gui(player)
     local frame = Gui.get_left_element(player, left_frame_name)
     if not frame.visible then
@@ -307,6 +324,7 @@ local function update_left_gui(player)
     end
 end
 
+---@param player LuaPlayer
 local function draw_left_gui(player)
     local flow = Gui.get_left_flow(player)
     local frame = flow.add {
@@ -324,6 +342,7 @@ local function draw_left_gui(player)
     Gui.set_data(frame, window)
 end
 
+---@param player LuaPlayer
 local function init_player(player)
     get_player_stats(player.index)
     get_player_settings(player.index)

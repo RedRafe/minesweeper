@@ -103,23 +103,50 @@ local EXPLOSIONS = {
     'atomic-rocket'
 }
 
-local function tile_key(x, y) return x .. '_' .. y end
-local function chunk_key(cx, cy) return cx .. ',' .. cy end
-local function get_chunk_of(x, y) return math_floor(x / CHUNK), math_floor(y / CHUNK) end
-
-local function factorio_to_engine_tile(pos)
-    return math_floor(pos.x / TILE_SCALE), math_floor(pos.y / TILE_SCALE)
+---@param ex number
+---@param ey number
+---@return string
+local function tile_key(ex, ey)
+    return ex .. '_' .. ey
 end
 
+---@param ex number
+---@param ey number
+---@return string
+local function chunk_key(cx, cy)
+    return cx .. ',' .. cy
+end
+
+---@param ex number
+---@param ey number
+---@return number, number
+local function get_chunk_of(ex, ey)
+    return math_floor(ex * TILE_SCALE / CHUNK), math_floor(ey * TILE_SCALE / CHUNK)
+end
+
+---@param position MapPosition
+---@return number, number
+local function factorio_to_engine_tile(position)
+    return math_floor(position.x / TILE_SCALE), math_floor(position.y / TILE_SCALE)
+end
+
+---@param ex number
+---@param ey number
+---@return MapPosition
 local function engine_to_factorio_tile(ex, ey)
     return { x = ex * TILE_SCALE + TILE_SCALE / 2, y = ey * TILE_SCALE + TILE_SCALE / 2 }
 end
 
-local function is_archived(x, y)
-    local cx, cy = get_chunk_of(x, y)
+---@param ex number
+---@param ey number
+---@return boolean
+local function is_archived(ex, ey)
+    local cx, cy = get_chunk_of(ex, ey)
     return archived_chunks[chunk_key(cx, cy)] == true
 end
 
+---@param k string
+---@return number, number
 local function key_to_xy(k)
     local x, y = k:match('(%d+)_(%d+)')
     return tonumber(x), tonumber(y)
@@ -129,40 +156,54 @@ end
 -- TILE ENUM HELPERS
 ---------------------------------------------------------
 
-local function get_tile_enum(x, y)
-    if is_archived(x, y) then
+---@param ex number
+---@param ey number
+---@return number
+local function get_tile_enum(ex, ey)
+    if is_archived(ex, ey) then
         return TILE_HIDDEN
     end
-    return tiles[tile_key(x, y)] or TILE_HIDDEN
+    return tiles[tile_key(ex, ey)] or TILE_HIDDEN
 end
 
-local function set_tile_enum(x, y, val)
-    if is_archived(x, y) then
+---@param ex number
+---@param ey number
+local function set_tile_enum(ex, ey, val)
+    if is_archived(ex, ey) then
         return
     end
-    tiles[tile_key(x, y)] = val
+    tiles[tile_key(ex, ey)] = val
 end
 
-local function has_mine(x, y)
-    local val = get_tile_enum(x, y)
+---@param ex number
+---@param ey number
+---@return boolean
+local function has_mine(ex, ey)
+    local val = get_tile_enum(ex, ey)
     if val == TILE_MINE or val == TILE_EXPLODED then
         return true
     end
     -- deterministic generation for hidden tiles
-    if is_archived(x, y) then
+    if is_archived(ex, ey) then
         return false
     end
-    local h = math_abs(bit32_bxor(bit32_bxor(x * 0x2D0F3E, y * 0x1F123B), this.seed))
-    local d = math_min(35, 8 + math_sqrt(x * x + y * y) * 0.02)
+    local h = math_abs(bit32_bxor(bit32_bxor(ex * 0x2D0F3E, ey * 0x1F123B), this.seed))
+    local d = math_min(35, 8 + math_sqrt(ex * ex + ey * ey) * 0.02)
     return h % 100 < d
 end
 
-local function is_flagged(x, y)
-    return get_tile_enum(x, y) == TILE_FLAGGED
+---@param x number
+---@param y number
+---@return boolean
+local function is_flagged(ex, ey)
+    return get_tile_enum(ex, ey) == TILE_FLAGGED
 end
 
-local function is_revealed(x, y)
-    local val = get_tile_enum(x, y)
+---@param ex number
+---@param ey number
+---@return boolean
+local function is_revealed(ex, ey)
+    local val = get_tile_enum(ex, ey)
     return (val >= 0 and val <= 8) or val == TILE_MINE or val == TILE_EXPLODED
 end
 
@@ -170,6 +211,8 @@ end
 -- EFFECTS
 ---------------------------------------------------------
 
+---@param surface LuaSurface
+---@param position MapPosition
 local function explosion(surface, position)
 	if surface.count_entities_filtered({ name = EXPLOSIONS, radius = 6, limit = 1 }) > 0 then return end
 	surface.create_entity{
@@ -185,28 +228,35 @@ end
 -- ADJACENT MINES
 ---------------------------------------------------------
 
-local function adjacent_mines(x, y)
-    local val = get_tile_enum(x, y)
+---@param ex number
+---@param ey number
+---@return number
+local function adjacent_mines(ex, ey)
+    local val = get_tile_enum(ex, ey)
     if val >= 0 and val <= 8 then
         return val
     end
-    local c = 0
+    local count = 0
     for _, off in ipairs(ADJ) do
-        local nx, ny = x + off[1], y + off[2]
+        local nx, ny = ex + off[1], ey + off[2]
         if has_mine(nx, ny) then
-            c = c + 1
+            count = count + 1
         end
     end
-    return c
+    return count
 end
 
 ---------------------------------------------------------
 -- FLOOD-FILL
 ---------------------------------------------------------
 
-local function flood_fill(x, y, surface, player_index)
+---@param ex number
+---@param ey number
+---@param surface LuaSurface
+---@param player_index number
+local function flood_fill(ex, ey, surface, player_index)
     local revealed = {}
-    local queue = {{x, y}}
+    local queue = { { ex, ey } }
     local visited = {}
 
     while #queue > 0 do
@@ -224,14 +274,16 @@ local function flood_fill(x, y, surface, player_index)
             local adj = adjacent_mines(cx, cy)
             set_tile_enum(cx, cy, adj)
             revealed[#revealed+1] = { x = cx, y = cy }
-            Msw.queue_update_tile_entity(surface, cx, cy)
+            Msw.update_tile_entity_async(surface, cx, cy)
         end
 
         if adjacent_mines(cx, cy) == 0 then
             for _, off in ipairs(ADJ) do
                 local nx, ny = cx + off[1], cy + off[2]
                 local nk = tile_key(nx, ny)
-                if not visited[nk] then queue[#queue+1] = {nx, ny} end
+                if not visited[nk] then
+                    queue[#queue+1] = { nx, ny }
+                end
             end
         end
 
@@ -241,6 +293,23 @@ local function flood_fill(x, y, surface, player_index)
     return revealed
 end
 
+---@param ex number
+---@param ey number
+---@param surface LuaSurface
+---@param player_index number
+local function flood_fill_async(ex, ey, surface, player_index)
+    local tile_queue = Queue.new()
+    tile_queue:push { ex, ey }
+
+    flood_fill_queue:push {
+        tile_queue = tile_queue,
+        visited = {},
+        player_index = player_index,
+        surface = surface,
+    }
+end
+
+---@param limit number
 local function process_flood_fill_queue(limit)
     if flood_fill_queue:size() == 0 then
         return
@@ -250,18 +319,17 @@ local function process_flood_fill_queue(limit)
     local job = flood_fill_queue:peek()
 
     local revealed = {}
-    local queue = job.queue
+    local tile_queue = job.tile_queue
     local visited = job.visited
     local surface = job.surface
-    local player_index = job.player_index
 
     local count = 0
 
-    -- Process up to N nodes this tick
-    while #queue > 0 and count < limit do
+    -- Process up to limit nodes this tick
+    while tile_queue:size() > 0 and count < limit do
         count = count + 1
 
-        local node = table.remove(queue, 1)
+        local node = tile_queue:pop()
         local cx, cy = node[1], node[2]
         local key = tile_key(cx, cy)
 
@@ -276,7 +344,7 @@ local function process_flood_fill_queue(limit)
             local adj = adjacent_mines(cx, cy)
             set_tile_enum(cx, cy, adj)
             revealed[#revealed+1] = { type = adj, position = engine_to_factorio_tile(cx, cy) }
-            Msw.queue_update_tile_entity(surface, cx, cy)
+            Msw.update_tile_entity_async(surface, cx, cy)
         end
 
         if adjacent_mines(cx, cy) == 0 then
@@ -284,7 +352,7 @@ local function process_flood_fill_queue(limit)
                 local nx, ny = cx + off[1], cy + off[2]
                 local nk = tile_key(nx, ny)
                 if not visited[nk] then
-                    queue[#queue+1] = {nx, ny}
+                    tile_queue:push { nx, ny }
                 end
             end
         end
@@ -297,31 +365,23 @@ local function process_flood_fill_queue(limit)
         script.raise_event(defines.events.on_tile_revealed, {
             tick = game.tick,
             name = defines.events.on_tile_revealed,
-            player_index = player_index,
+            player_index = job.player_index,
             surface_index = surface.index,
             tiles = revealed,
         })
     end
 
     -- If finished, remove job
-    if #queue == 0 then
+    if tile_queue:size() == 0 then
         flood_fill_queue:pop()
     end
-end
-
-local function flood_fill_async(x, y, surface, player_index)
-    flood_fill_queue:push {
-        queue = { {x, y} },
-        visited = {},
-        player_index = player_index,
-        surface = surface,
-    }
 end
 
 ---------------------------------------------------------
 -- CUSTOM INPUT HANDLING
 ---------------------------------------------------------
 
+---@param event defines.events.CustomInputEvent
 local function validate_custom_input(event)
     local player = game.get_player(event.player_index)
 
@@ -356,6 +416,10 @@ end
 -- REVEAL
 ---------------------------------------------------------
 
+---@param surface LuaSurface
+---@param ex number
+---@param ey number
+---@param player_index number
 function Msw.reveal(surface, ex, ey, player_index)
     if is_archived(ex, ey) then return {} end
     if is_flagged(ex, ey) or is_revealed(ex, ey) then return {} end
@@ -398,6 +462,10 @@ end
 -- FLAG
 ---------------------------------------------------------
 
+---@param surface LuaSurface
+---@param ex number
+---@param ey number
+---@param player_index number
 function Msw.flag(surface, ex, ey, player_index)
     if is_archived(ex, ey) then return end
     if is_revealed(ex, ey) then return end
@@ -428,6 +496,10 @@ end
 -- CHORD
 ---------------------------------------------------------
 
+---@param surface LuaSurface
+---@param ex number
+---@param ey number
+---@param player_index number
 function Msw.chord(surface, ex, ey, player_index)
     if not is_revealed(ex, ey) then
         return
@@ -472,6 +544,9 @@ end
 -- ENTITY DISPLAY
 ---------------------------------------------------------
 
+---@param surface LuaSurface
+---@param ex number
+---@param ey number
 local function destroy_existing(surface, ex, ey)
     local area = {
         { ex * TILE_SCALE, ey * TILE_SCALE },
@@ -482,6 +557,9 @@ local function destroy_existing(surface, ex, ey)
     end
 end
 
+---@param surface LuaSurface
+---@param ex number
+---@param ey number
 function Msw.update_tile_entity(surface, ex, ey)
     local val = get_tile_enum(ex, ey)
     destroy_existing(surface, ex, ey)
@@ -494,10 +572,14 @@ function Msw.update_tile_entity(surface, ex, ey)
     end
 end
 
-function Msw.queue_update_tile_entity(surface, ex, ey)
+---@param surface LuaSurface
+---@param ex number
+---@param ey number
+function Msw.update_tile_entity_async(surface, ex, ey)
     entity_update_queue:push { surface = surface, x = ex, y = ey }
 end
 
+---@param limit number
 local function process_entity_queue(limit)
     while (limit > 0) and (entity_update_queue:size() > 0) do
         local t = entity_update_queue:pop()
@@ -517,11 +599,18 @@ local r_rect = rendering.draw_rectangle
 local r_text = rendering.draw_text
 
 -- Draw debug info for one tile
-local function r_couple(surface, x, y, offset, size, player_renders, text, key)
+---@param surface LuaSurface
+---@param ex number
+---@param ey number
+---@param offset table<number, number>
+---@param player_renders table<LuaRenderingObject>
+---@param text string
+---@param status boolean
+local function r_couple(surface, ex, ey, offset, size, player_renders, text, status)
     player_renders[#player_renders + 1] = r_rect {
-        color = key and GREEN or RED,
-        left_top = { TILE_SCALE * x + offset[1], TILE_SCALE * y + offset[2] },
-        right_bottom = { TILE_SCALE * x + size + offset[1], TILE_SCALE * y + size + offset[2] },
+        color = status and GREEN or RED,
+        left_top = { TILE_SCALE * ex + offset[1], TILE_SCALE * ey + offset[2] },
+        right_bottom = { TILE_SCALE * ex + size + offset[1], TILE_SCALE * ey + size + offset[2] },
         filled = true,
         surface = surface,
         players = { player_index },
@@ -530,7 +619,7 @@ local function r_couple(surface, x, y, offset, size, player_renders, text, key)
         player_renders[#player_renders + 1] = r_text {
             color = BLACK,
             text = text,
-            target = { TILE_SCALE * x + offset[1]+ 0.4, TILE_SCALE * y+ offset[2] + 0.2 },
+            target = { TILE_SCALE * ex + offset[1]+ 0.4, TILE_SCALE * ey + offset[2] + 0.2 },
             surface = surface,
             players = { player_index },
         }
@@ -538,25 +627,37 @@ local function r_couple(surface, x, y, offset, size, player_renders, text, key)
 end
 
 -- Display tile debug info
-local function display_advanced(surface, x, y, player_index)
-    local val = get_tile_enum(x, y)
+---@param surface LuaSurface
+---@param ex number
+---@param ey number
+---@param player_index number
+local function display_advanced(surface, ex, ey, player_index)
+    local val = get_tile_enum(ex, ey)
     local rds = renders[player_index] or {}
     local o = TILE_SCALE / 2
-    r_couple(surface, x, y, { 0, 0 }, TILE_SCALE / 2, rds, 'r', is_revealed(x, y))
-    r_couple(surface, x, y, { o, 0 }, TILE_SCALE / 2, rds, 'f', is_flagged(x, y))
-    r_couple(surface, x, y, { 0, o }, TILE_SCALE / 2, rds, 'm', has_mine(x, y))
-    r_couple(surface, x, y, { o, o }, TILE_SCALE / 2, rds, 'e', val == TILE_EXPLODED)
+    r_couple(surface, ex, ey, { 0, 0 }, TILE_SCALE / 2, rds, 'r', is_revealed(ex, ey))
+    r_couple(surface, ex, ey, { o, 0 }, TILE_SCALE / 2, rds, 'f', is_flagged(ex, ey))
+    r_couple(surface, ex, ey, { 0, o }, TILE_SCALE / 2, rds, 'm', has_mine(ex, ey))
+    r_couple(surface, ex, ey, { o, o }, TILE_SCALE / 2, rds, 'e', val == TILE_EXPLODED)
     renders[player_index] = rds
 end
 
-local function display_simple(surface, x, y, player_index)
-    local val = get_tile_enum(x, y)
+---@param surface LuaSurface
+---@param x number
+---@param y number
+---@param player_index number
+local function display_simple(surface, ex, ey, player_index)
+    local val = get_tile_enum(ex, ey)
     local rds = renders[player_index] or {}
-    r_couple(surface, x, y, { 0, 0 }, TILE_SCALE, rds, nil, not has_mine(x, y))
+    r_couple(surface, ex, ey, { 0, 0 }, TILE_SCALE, rds, nil, not has_mine(ex, ey))
     renders[player_index] = rds
 end
 
 -- Show 8 surrounding tiles around player
+---@param surface LuaSurface
+---@param ex number
+---@param ey number
+---@param player_index number
 local function show_player_surroundings(surface, ex, ey, player_index)
     for _, r in pairs(renders[player_index] or {}) do
         r.destroy()
@@ -615,18 +716,13 @@ local function on_chunk_generated(event)
     local MSW_PER_CHUNK = 32 / TILE_SCALE
     local msw_cx = math_floor(event.position.x * MSW_PER_CHUNK)
     local msw_cy = math_floor(event.position.y * MSW_PER_CHUNK)
-    local updater = (game.tick == 0) and Msw.update_tile_entity or Msw.queue_update_tile_entity
+    local updater = (game.tick == 0) and Msw.update_tile_entity or Msw.update_tile_entity_async
 
     for tx = msw_cx, msw_cx + MSW_PER_CHUNK - 1 do
         for ty = msw_cy, msw_cy + MSW_PER_CHUNK - 1 do
             updater(surface, tx, ty)
         end
     end
-end
-
-local function on_tick()
-    process_flood_fill_queue(4*UPDATE_RATE)
-    process_entity_queue(UPDATE_RATE)
 end
 
 local function on_tile_revealed(event)
@@ -664,6 +760,11 @@ local function on_tile_flagged(event)
 
     -- Show debug tiles around player
     show_player_surroundings(surface, ex, ey, event.player_index)
+end
+
+local function on_tick()
+    process_flood_fill_queue(UPDATE_RATE * 4)
+    process_entity_queue(UPDATE_RATE)
 end
 
 ---------------------------------------------------------
