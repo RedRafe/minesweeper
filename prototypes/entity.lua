@@ -19,7 +19,7 @@ local function entity(params)
         },
         order = 'minesweeper-'..params.name,
         subgroup = 'minesweeper',
-        collision_mask = { layers = {} },
+        collision_mask = { layers = { minesweeper = true }},
         render_layer = 'above-tiles',
         selection_priority = 10,
         build_grid_size = 2,

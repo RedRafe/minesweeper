@@ -1,3 +1,4 @@
+require 'prototypes.collision-layer'
 require 'prototypes.custom-input'
 require 'prototypes.font'
 require 'prototypes.entity'
