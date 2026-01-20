@@ -1,6 +1,6 @@
-local handler = require '__core__.lualib.event_handler'
+local Handler = require '__core__.lualib.event_handler'
 
-handler.add_libraries{
+Handler.add_libraries{
     require 'scripts.gui',
     require 'scripts.minesweeper',
     require 'scripts.score',
