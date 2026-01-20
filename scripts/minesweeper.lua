@@ -1,5 +1,5 @@
-local Queue = require 'scripts.queue'
 local Const = require 'scripts.constants'
+local Queue = require 'scripts.queue'
 
 local Msw = {}
 
@@ -9,6 +9,7 @@ local Msw = {}
 
 local ADJ           = Const.ADJ
 local FORCE_NAME    = Const.FORCE_NAME
+local SURFACE_INDEX = Const.SURFACE_INDEX
 local TILE_ENTITIES = Const.TILE_ENTITIES
 local TILE_EXPLODED = Const.TILE_EXPLODED
 local TILE_FLAGGED  = Const.TILE_FLAGGED
@@ -143,6 +144,10 @@ local function is_revealed(x, y)
     return (val >= 0 and val <= 8) or val == TILE_MINE or val == TILE_EXPLODED
 end
 
+---------------------------------------------------------
+-- EFFECTS
+---------------------------------------------------------
+
 local function explosion(surface, position)
 	if surface.count_entities_filtered({ name = EXPLOSIONS, radius = 6, limit = 1 }) > 0 then return end
 	surface.create_entity{
@@ -220,6 +225,7 @@ end
 
 local function validate_custom_input(event)
     local player = game.get_player(event.player_index)
+
     local cursor = player.cursor_stack
     if not (cursor and cursor.valid_for_read) then
         return
@@ -230,7 +236,17 @@ local function validate_custom_input(event)
     end
     
     local selected = player.selected
-    if not (selected and selected.valid and selected.force and selected.force.name == FORCE_NAME) then
+    if not (selected and selected.valid) then
+        return
+    end
+
+    local surface = selected.surface
+    if not (surface and surface.index == SURFACE_INDEX) then
+        return
+    end
+
+    local force = selected.force
+    if not (force and force.name == FORCE_NAME) then
         return
     end
 
@@ -353,6 +369,10 @@ function Msw.chord(surface, ex, ey, player_index)
 end
 
 ---------------------------------------------------------
+-- ARCHIVE
+---------------------------------------------------------
+
+---------------------------------------------------------
 -- ENTITY DISPLAY
 ---------------------------------------------------------
 
@@ -464,9 +484,13 @@ local function on_player_changed_position(event)
         return
     end
 
+    if player.physical_surface.index ~= SURFACE_INDEX then
+        return
+    end
+
     -- Engine tile coordinates
     local ex, ey = factorio_to_engine_tile(player.physical_position)
-    local surface = player.surface
+    local surface = player.physical_surface
 
     -- Reveal the tile the player is on
     Msw.reveal(surface, ex, ey, event.player_index)
@@ -478,28 +502,12 @@ local function on_player_changed_position(event)
     show_player_surroundings(surface, ex, ey, event.player_index)
 end
 
-local function on_built_entity(event)
-    local entity = event.entity
-    if not entity or not entity.valid or entity.name ~= 'stone-furnace' then
+local function on_chunk_generated(event)
+    local surface = event.surface
+    if surface.index ~= SURFACE_INDEX then
         return
     end
 
-    -- Engine tile coordinates
-    local ex, ey = factorio_to_engine_tile(entity.position)
-    local surface = entity.surface
-
-    -- Flag the current position
-    Msw.flag(surface, ex, ey, event.player_index)
-
-    -- Destroy dummy marker
-    entity.destroy { raise_destroy = false }
-
-    -- Show debug tiles around player
-    show_player_surroundings(surface, ex, ey, event.player_index)
-end
-
-local function on_chunk_generated(event)
-    local surface = event.surface
     local MSW_PER_CHUNK = 32 / TILE_SCALE
     local msw_cx = math_floor(event.position.x * MSW_PER_CHUNK)
     local msw_cy = math_floor(event.position.y * MSW_PER_CHUNK)
@@ -521,7 +529,7 @@ local function on_nth_tick()
     end
 end
 
-local function on_reveal_tile(event)
+local function on_tile_revealed(event)
     local entity = validate_custom_input(event)
     if not entity then
         return
@@ -541,7 +549,7 @@ local function on_reveal_tile(event)
     show_player_surroundings(surface, ex, ey, event.player_index)
 end
 
-local function on_flag_tile(event)
+local function on_tile_flagged(event)
     local entity = validate_custom_input(event)
     if not entity then
         return
@@ -573,10 +581,9 @@ Msw.on_load = load_storage
 
 Msw.events = {
     [defines.events.on_player_changed_position] = on_player_changed_position,
-    [defines.events.on_built_entity]            = on_built_entity,
     [defines.events.on_chunk_generated]         = on_chunk_generated,
-    [Const.CI_REVEAL_TILE]                      = on_reveal_tile,
-    [Const.CI_FLAG_TILE]                        = on_flag_tile,
+    [Const.CI_REVEAL_TILE]                      = on_tile_revealed,
+    [Const.CI_FLAG_TILE]                        = on_tile_flagged,
 }
 
 Msw.on_nth_tick = {
