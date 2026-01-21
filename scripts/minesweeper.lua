@@ -40,6 +40,17 @@ local flood_fill_queue = Queue.new()
 
 --[[
     {
+        id = <number>,
+        queue = { {x,y}, ... },
+        visited = {},
+        player_index = <number>,
+        surface = <LuaSurface>,
+    }
+]]
+local archive_fill_queue = Queue.new()
+
+--[[
+    {
         surface = <LuaSurface>,
         x = <number>,
         y = <number>,
@@ -50,6 +61,7 @@ local entity_update_queue = Queue.new()
 local tiles = {}           -- tiles['x_y'] = enum
 local archived_chunks = {} -- archived chunks
 local renders = {}
+local archive_chunk_list = {}
 local this = { seed = 12345 }
 local CHUNK = 32
 
@@ -67,6 +79,8 @@ function init_storage()
         renders = renders,
         flood_fill_queue = flood_fill_queue,
         entity_update_queue = entity_update_queue,
+        archive_fill_queue = archive_fill_queue,
+        archive_chunk_list = archive_chunk_list,
     }
 end
 
@@ -81,6 +95,8 @@ function load_storage()
     renders = tbl.renders
     flood_fill_queue = tbl.flood_fill_queue
     entity_update_queue = tbl.entity_update_queue
+    archive_fill_queue = tbl.archive_fill_queue
+    archive_chunk_list = tbl.archive_chunk_list
 end
 
 ---------------------------------------------------------
@@ -551,6 +567,145 @@ end
 -- ARCHIVE
 ---------------------------------------------------------
 
+function Msw.archive_async(surface, ex, ey, player_index)
+    if is_archived(ex, ey) then
+        return
+    end
+
+    local tile_queue = Queue.new()
+    tile_queue:push{ ex, ey }
+
+    archive_fill_queue:push{
+        tile_queue   = tile_queue,
+        visited      = {},
+        player_index = player_index,
+        surface      = surface,
+    }
+end
+
+local function process_archive_queue(limit)
+    if archive_fill_queue:size() == 0 then
+        return
+    end
+
+    -- Only process one archive-job at a time
+    local job = archive_fill_queue:peek()
+
+    local tile_queue = job.tile_queue
+    local visited    = job.visited
+    local surface    = job.surface
+    local player     = job.player_index
+
+    local count = 0
+
+    while tile_queue:size() > 0 and count < limit do
+        count = count + 1
+
+        local node = tile_queue:pop()
+        local cx, cy = node[1], node[2]
+        local key = tile_key(cx, cy)
+
+        if visited[key] then goto continue end
+        visited[key] = true
+
+        -- Skip already archived
+        if is_archived(cx, cy) then
+            goto expand
+        end
+
+        -- Check if this tile is allowed to be archived
+        if get_tile_enum(cx, cy) ~= TILE_EMPTY then
+            for nx = cx - 2, cx + 2 do
+                for ny = cy - 2, cy + 2 do
+                    if not is_revealed(nx, ny)
+                        and not (is_flagged(nx, ny) and has_mine(nx, ny))
+                    then
+                        goto continue
+                    end
+                end
+            end
+        end
+
+        -- Archive it
+        set_tile_enum(cx, cy, TILE_ARCHIVED)
+        Msw.update_tile_entity_async(surface, cx, cy)
+
+        -- Attempt chunk archive (async-friendly)
+        Msw.archive_chunk_async(surface, cx, cy)
+
+        ::expand::
+        -- Expand flood-fill only if the tile is archived now
+        if is_archived(cx, cy) then
+            for _, off in ipairs(ADJ) do
+                local nx, ny = cx + off[1], cy + off[2]
+                local nk = tile_key(nx, ny)
+                if not visited[nk] then
+                    tile_queue:push{ nx, ny }
+                end
+            end
+        end
+
+        ::continue::
+    end
+
+    -- Completed job
+    if tile_queue:size() == 0 then
+        archive_fill_queue:pop()
+    end
+end
+
+function Msw.archive_chunk_async(surface, ex, ey)
+    local cx, cy = get_chunk_of(ex, ey)
+    local ck = chunk_key(cx, cy)
+
+    if archived_chunks[ck] then return end
+    if archive_chunk_list[ck] then return end
+
+    archive_chunk_list[ck] = {
+        surface = surface,
+        ex = ex,
+        ey = ey
+    }
+end
+
+local function archive_chunk(surface, ex, ey)
+    local cx, cy = get_chunk_of(ex, ey)
+    local ck = chunk_key(cx, cy)
+
+    if archived_chunks[ck] then return end
+
+    -- Check for any tile-entity from this mod in the chunk
+    if surface.count_entities_filtered{
+        area = { { cx, cy }, { cx + 31, cy + 31} },
+        force = FORCE_NAME,
+        type = 'simple-entity-with-force',
+        limit = 1,
+    } > 0 then
+        return
+    end
+
+    -- Archive the whole 16×16 region
+    for tx = ex, ex + 16 do
+        for ty = ey, ey + 16 do
+            set_tile_enum(tx, ty, nil)
+            Msw.update_tile_entity_async(surface, tx, ty)
+        end
+    end
+
+    archived_chunks[ck] = true
+end
+
+local function process_archive_chunk_list()
+    local ck, c = next(archive_chunk_list)
+    if not ck then
+        return
+    end
+
+    archive_chunk(c.surface, c.ex, c.ey)
+    archive_chunk_list[ck] = nil
+end
+
+
 ---@param surface LuaSurface
 ---@param ex number
 ---@param ey number
@@ -832,7 +987,7 @@ local function on_player_changed_position(event)
     -- Attempt chording around the player
     Msw.chord(surface, ex, ey, event.player_index)
 
-    Msw.archive(surface, ex, ey, event.player_index)
+    Msw.archive_async(surface, ex, ey, event.player_index)
     --Msw.solve(surface, ex, ey, event.player_index)
 
     -- Show debug tiles around player
@@ -873,7 +1028,7 @@ local function on_tile_revealed(event)
     -- Attempt chording around the player
     Msw.chord(surface, ex, ey, event.player_index)
 
-    Msw.archive(surface, ex, ey, event.player_index)
+    Msw.archive_async(surface, ex, ey, event.player_index)
     --Msw.solve(surface, ex, ey, event.player_index)
 
     -- Show debug tiles around player
@@ -893,7 +1048,7 @@ local function on_tile_flagged(event)
     -- Flag the current position
     Msw.flag(surface, ex, ey, event.player_index)
 
-    Msw.archive(surface, ex, ey, event.player_index)
+    Msw.archive_async(surface, ex, ey, event.player_index)
     --Msw.solve(surface, ex, ey, event.player_index)
 
     -- Show debug tiles around player
@@ -902,7 +1057,9 @@ end
 
 local function on_tick()
     process_flood_fill_queue(UPDATE_RATE * 4)
+    process_archive_queue(UPDATE_RATE)
     process_entity_queue(UPDATE_RATE)
+    process_archive_chunk_list()
 end
 
 ---------------------------------------------------------
