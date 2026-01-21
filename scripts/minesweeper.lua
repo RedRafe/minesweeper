@@ -610,7 +610,7 @@ local function process_archive_queue(limit)
 
         -- Skip already archived
         if is_archived(cx, cy) then
-            goto expand
+            goto continue
         end
 
         -- Check if this tile is allowed to be archived
@@ -633,7 +633,6 @@ local function process_archive_queue(limit)
         -- Attempt chunk archive (async-friendly)
         Msw.archive_chunk_async(surface, cx, cy)
 
-        ::expand::
         -- Expand flood-fill only if the tile is archived now
         if is_archived(cx, cy) then
             for _, off in ipairs(ADJ) do
