@@ -11,12 +11,14 @@ local Msw = {}
 local ADJ           = Const.ADJ
 local FORCE_NAME    = Const.FORCE_NAME
 local SURFACE_INDEX = Const.SURFACE_INDEX
+local TILE_EMPTY    = Const.TILE_EMPTY
 local TILE_ENTITIES = Const.TILE_ENTITIES
 local TILE_EXPLODED = Const.TILE_EXPLODED
 local TILE_FLAGGED  = Const.TILE_FLAGGED
 local TILE_HIDDEN   = Const.TILE_HIDDEN
 local TILE_MINE     = Const.TILE_MINE
 local TILE_SCALE    = Const.TILE_SCALE
+local TILE_ARCHIVED = Const.TILE_ARCHIVED
 local TOOL_NAME     = Const.TOOL_NAME
 
 ---------------------------------------------------------
@@ -138,14 +140,6 @@ local function engine_to_factorio_tile(ex, ey)
     return { x = ex * TILE_SCALE + TILE_SCALE / 2, y = ey * TILE_SCALE + TILE_SCALE / 2 }
 end
 
----@param ex number
----@param ey number
----@return boolean
-local function is_archived(ex, ey)
-    local cx, cy = get_chunk_of(ex, ey)
-    return archived_chunks[chunk_key(cx, cy)] == true
-end
-
 ---@param k string
 ---@return number, number
 local function key_to_xy(k)
@@ -159,18 +153,33 @@ end
 
 ---@param ex number
 ---@param ey number
+---@return boolean
+local function is_chunk_archived(ex, ey)
+    local cx, cy = get_chunk_of(ex, ey)
+    return archived_chunks[chunk_key(cx, cy)] == true
+end
+
+---@param ex number
+---@param ey number
 ---@return number
 local function get_tile_enum(ex, ey)
-    if is_archived(ex, ey) then
-        return TILE_HIDDEN
+    if is_chunk_archived(ex, ey) then
+        return TILE_ARCHIVED
     end
     return tiles[tile_key(ex, ey)] or TILE_HIDDEN
 end
 
 ---@param ex number
 ---@param ey number
+---@return boolean
+local function is_archived(ex, ey)
+    return get_tile_enum(ex, ey) == TILE_ARCHIVED
+end
+
+---@param ex number
+---@param ey number
 local function set_tile_enum(ex, ey, val)
-    if is_archived(ex, ey) then
+    if is_chunk_archived(ex, ey) then
         return
     end
     tiles[tile_key(ex, ey)] = val
@@ -185,7 +194,7 @@ local function has_mine(ex, ey)
         return true
     end
     -- deterministic generation for hidden tiles
-    if is_archived(ex, ey) then
+    if val == TILE_ARCHIVED then
         return false
     end
     local h = math_abs(bit32_bxor(bit32_bxor(ex * 0x2D0F3E, ey * 0x1F123B), this.seed))
@@ -204,8 +213,7 @@ end
 ---@param ey number
 ---@return boolean
 local function is_revealed(ex, ey)
-    local val = get_tile_enum(ex, ey)
-    return (val >= 0 and val <= 8) or val == TILE_MINE or val == TILE_EXPLODED
+    return get_tile_enum(ex, ey) <= 10
 end
 
 ---------------------------------------------------------
@@ -337,7 +345,7 @@ local function process_flood_fill_queue(limit)
         if visited[key] then goto continue end
         visited[key] = true
 
-        if is_archived(cx, cy) then goto continue end
+        if is_archived(cx, cy) then goto check_adj end
         if is_flagged(cx, cy) then goto continue end
         if has_mine(cx, cy) then goto continue end
 
@@ -347,6 +355,8 @@ local function process_flood_fill_queue(limit)
             revealed[#revealed+1] = { type = adj, position = engine_to_factorio_tile(cx, cy) }
             Msw.update_tile_entity_async(surface, cx, cy)
         end
+
+        ::check_adj::
 
         if adjacent_mines(cx, cy) == 0 then
             for _, off in ipairs(ADJ) do
@@ -513,7 +523,7 @@ function Msw.chord(surface, ex, ey, player_index)
     local discovered = 0
     local hidden = {}
 
-    for _, off in ipairs(ADJ) do
+    for _, off in pairs(ADJ) do
         local nx, ny = ex + off[1], ey + off[2]
         local val = get_tile_enum(nx, ny)
         if val == TILE_FLAGGED or val == TILE_EXPLODED then
@@ -528,9 +538,9 @@ function Msw.chord(surface, ex, ey, player_index)
     end
 
     local revealed_tiles = {}
-    for _, t in ipairs(hidden) do
+    for _, t in pairs(hidden) do
         local new_tiles = Msw.reveal(surface, t.nx or t[1], t.ny or t[2], player_index)
-        for _, r in ipairs(new_tiles) do
+        for _, r in pairs(new_tiles) do
             revealed_tiles[#revealed_tiles + 1] = r
         end
     end
@@ -540,6 +550,119 @@ end
 ---------------------------------------------------------
 -- ARCHIVE
 ---------------------------------------------------------
+
+---@param surface LuaSurface
+---@param ex number
+---@param ey number
+---@param player_index number
+function Msw.archive(surface, ex, ey, player_index)
+    if is_archived(ex, ey) then
+        return
+    end
+
+    if get_tile_enum(ex, ey) ~= TILE_EMPTY then
+        for nx = ex - 2, ex + 2, 1 do
+            for ny = ey - 2, ey + 2, 1 do
+                if not is_revealed(nx, ny) and not (is_flagged(nx, ny) and has_mine(nx, ny)) then
+                    return
+                end
+            end
+        end
+    end
+
+    set_tile_enum(ex, ey, TILE_ARCHIVED)
+    Msw.update_tile_entity(surface, ex, ey)
+
+    -- Attempt archiving chunk
+    local cx, cy = get_chunk_of(ex, ey)
+    if archived_chunks[chunk_key(cx, cy)] then
+        return
+    end
+
+    if surface.count_entities_filtered{
+        area = { { cx, cy }, { cx + 31, cy + 31} },
+        force = FORCE_NAME,
+        type = 'simple-entity-with-force',
+        limit = 1,
+    } > 0 then return end
+
+    for tx = ex, ex + 16 do
+        for ty = ey, ey + 16 do
+            set_tile_enum(tx, ty, nil)
+            Msw.update_tile_entity(surface, tx, ty)
+        end
+    end
+
+    archived_chunks[chunk_key(cx, cy)] = true
+end
+
+---------------------------------------------------------
+-- SOLVE (modern Minesweeper auto-solving)
+---------------------------------------------------------
+
+---@param surface LuaSurface
+---@param ex number
+---@param ey number
+---@param player_index number
+---@return boolean progressed
+function Msw.solve(surface, ex, ey, player_index)
+    local progressed = false
+
+    -- For all 8 directions around the focal tile
+    for _, off in ipairs(ADJ) do
+        local cx, cy = ex + off[1], ey + off[2]
+
+        if not is_revealed(cx, cy) then
+            goto continue
+        end
+
+        local number = adjacent_mines(cx, cy)
+
+        -- Only number tiles: 1–8 matter.
+        if not (number > 0) then
+            goto continue
+        end
+
+        local flagged = 0
+        local hidden_neighbors = {}
+
+        -- Scan neighbors-of-neighbor
+        for _, off2 in ipairs(ADJ) do
+            local nx, ny = cx + off2[1], cy + off2[2]
+            local state = get_tile_enum(nx, ny)
+
+            if state == TILE_FLAGGED then
+                flagged = flagged + 1
+            elseif not is_revealed(nx, ny) then
+                hidden_neighbors[#hidden_neighbors + 1] = { nx, ny }
+            end
+        end
+
+        local hidden_count = #hidden_neighbors
+
+        -- Rule 1: All remaining hidden tiles are SAFE → reveal them
+        if flagged == number and hidden_count > 0 then
+            for _, pos in ipairs(hidden_neighbors) do
+                Msw.reveal(surface, pos[1], pos[2], player_index)
+            end
+            progressed = true
+        end
+
+        -- Rule 2: All hidden tiles MUST be mines → flag them
+        if hidden_count > 0 and (flagged + hidden_count == number) then
+            for _, pos in ipairs(hidden_neighbors) do
+                if get_tile_enum(pos[1], pos[2]) ~= TILE_FLAGGED then
+                    Msw.flag(surface, pos[1], pos[2], player_index)
+                    progressed = true
+                end
+            end
+        end
+
+        ::continue::
+    end
+
+    return progressed
+end
 
 ---------------------------------------------------------
 -- ENTITY DISPLAY
@@ -564,7 +687,12 @@ end
 function Msw.update_tile_entity(surface, ex, ey)
     local val = get_tile_enum(ex, ey)
     destroy_existing(surface, ex, ey)
-    local proto = TILE_ENTITIES[val] or TILE_ENTITIES[TILE_HIDDEN]
+
+    local proto = TILE_ENTITIES[val]
+    if not proto then
+        return
+    end
+
     local pos = engine_to_factorio_tile(ex, ey)
     local entity = surface.create_entity { name = proto, position = pos, force = FORCE_NAME }
     if entity then
@@ -704,6 +832,9 @@ local function on_player_changed_position(event)
     -- Attempt chording around the player
     Msw.chord(surface, ex, ey, event.player_index)
 
+    Msw.archive(surface, ex, ey, event.player_index)
+    --Msw.solve(surface, ex, ey, event.player_index)
+
     -- Show debug tiles around player
     show_player_surroundings(surface, ex, ey, event.player_index)
 end
@@ -742,6 +873,9 @@ local function on_tile_revealed(event)
     -- Attempt chording around the player
     Msw.chord(surface, ex, ey, event.player_index)
 
+    Msw.archive(surface, ex, ey, event.player_index)
+    --Msw.solve(surface, ex, ey, event.player_index)
+
     -- Show debug tiles around player
     show_player_surroundings(surface, ex, ey, event.player_index)
 end
@@ -758,6 +892,9 @@ local function on_tile_flagged(event)
 
     -- Flag the current position
     Msw.flag(surface, ex, ey, event.player_index)
+
+    Msw.archive(surface, ex, ey, event.player_index)
+    --Msw.solve(surface, ex, ey, event.player_index)
 
     -- Show debug tiles around player
     show_player_surroundings(surface, ex, ey, event.player_index)

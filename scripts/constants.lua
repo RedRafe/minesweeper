@@ -8,15 +8,17 @@ Public.CI_FLAG_TILE   = 'minesweeper-tile-flag'
 
 -- Tile enums
 -- 0-8: revealed tile with that many adjacent mines
--- 9: hidden / unknown tile
--- 10: flagged
--- 11: revealed mine
--- 12: exploded mine
-
-Public.TILE_HIDDEN   = 9
-Public.TILE_FLAGGED  = 10
-Public.TILE_MINE     = 11
-Public.TILE_EXPLODED = 12
+-- 9: archived
+-- 10: exploded
+-- 11: hidden
+-- 12: mine
+-- 13: flagged
+Public.TILE_EMPTY    = 0
+Public.TILE_ARCHIVED = 9
+Public.TILE_EXPLODED = 10
+Public.TILE_HIDDEN   = 11
+Public.TILE_MINE     = 12
+Public.TILE_FLAGGED  = 13
 
 Public.TILE_SCALE = 2 -- 1 MSW tile = 2x2 Factorio tiles
 Public.SURFACE_INDEX = 1
@@ -29,7 +31,7 @@ Public.ADJ = {
 }
 
 Public.TILE_ENTITIES = {
-    [0] = 'minesweeper-tile-empty',
+    [Public.TILE_EMPTY]    = 'minesweeper-tile-empty',
     [1] = 'minesweeper-1',
     [2] = 'minesweeper-2',
     [3] = 'minesweeper-3',
@@ -38,10 +40,11 @@ Public.TILE_ENTITIES = {
     [6] = 'minesweeper-6',
     [7] = 'minesweeper-7',
     [8] = 'minesweeper-8',
-    [Public.TILE_HIDDEN]   = 'minesweeper-tile',
-    [Public.TILE_FLAGGED]  = 'minesweeper-flag',
-    [Public.TILE_MINE]     = 'minesweeper-mine',
+    [Public.TILE_ARCHIVED] = false,
     [Public.TILE_EXPLODED] = 'minesweeper-mine-explosion',
+    [Public.TILE_HIDDEN]   = 'minesweeper-tile',
+    [Public.TILE_MINE]     = 'minesweeper-mine',
+    [Public.TILE_FLAGGED]  = 'minesweeper-flag',
 }
 
 Public.POINTS = {
