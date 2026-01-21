@@ -4,5 +4,6 @@ Handler.add_libraries{
     require 'scripts.gui',
     require 'scripts.debug',
     require 'scripts.minesweeper',
+    require 'scripts.terrain',
     require 'scripts.score',
 }

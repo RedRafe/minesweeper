@@ -114,16 +114,6 @@ local pairs      = pairs
 local ipairs     = ipairs
 local tonumber   = tonumber
 
-local EXPLOSIONS = {
-    'atomic-bomb-ground-zero-projectile',
-    'atomic-bomb-wave',
-    'atomic-bomb-wave-spawns-cluster-nuke-explosion',
-    'atomic-bomb-wave-spawns-fire-smoke-explosion',
-    'atomic-bomb-wave-spawns-nuclear-smoke',
-    'atomic-bomb-wave-spawns-nuke-shockwave-explosion',
-    'atomic-rocket'
-}
-
 ---@param ex number
 ---@param ey number
 ---@return string
@@ -239,23 +229,6 @@ end
 ---@return boolean
 local function is_revealed(ex, ey)
     return get_tile_enum(ex, ey) <= 10
-end
-
----------------------------------------------------------
--- EFFECTS
----------------------------------------------------------
-
----@param surface LuaSurface
----@param position MapPosition
-local function explosion(surface, position)
-	if surface.count_entities_filtered({ name = EXPLOSIONS, radius = 6, limit = 1 }) > 0 then return end
-	surface.create_entity{
-        name = 'atomic-rocket',
-        position = { position.x + 1, position.y + 1 },
-        target = { position.x + 1, position.y + 1 },
-        speed = 1,
-        force = FORCE_NAME,
-    }
 end
 
 ---------------------------------------------------------
@@ -465,6 +438,7 @@ function Msw.reveal(surface, ex, ey, player_index)
     if has_mine(ex, ey) then
         set_tile_enum(ex, ey, TILE_EXPLODED)
         revealed_tiles[#revealed_tiles+1] = { x = ex, y = ey }
+        Terrain.explosion(surface, engine_to_factorio_tile(ex, ey), player_index)
     else
         local adj = adjacent_mines(ex, ey)
         set_tile_enum(ex, ey, adj)

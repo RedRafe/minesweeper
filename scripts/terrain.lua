@@ -1,3 +1,5 @@
+local Const = require 'scripts.constants'
+
 local Terrain = {}
 
 local math_abs    = math.abs
@@ -12,6 +14,8 @@ local RICHNESS     = _data.richness
 local SAND_ORES    = _data.frequencies.sand
 local GRASS_ORES   = _data.frequencies.grass
 local DEFAULT_TILE = 'nuclear-ground'
+local FORCE_NAME   = Const.FORCE_NAME
+local SURFACE_INDEX = Const.SURFACE_INDEX
 local TILES_MAP = {
     [1] = 'water-shallow',
     [2] = 'sand-1',
@@ -22,6 +26,25 @@ local TILES_MAP = {
     [7] = 'grass-3',
 }
 
+local NUCLEAR_CORPSES = { type = 'corpse', name = 'huge-scorchmark' }
+local NUCLEAR_DECORATIVES = { name = 'nuclear-ground-patch' }
+local EXPLOSIONS = {
+    'atomic-bomb-ground-zero-projectile',
+    'atomic-bomb-wave',
+    'atomic-bomb-wave-spawns-cluster-nuke-explosion',
+    'atomic-bomb-wave-spawns-fire-smoke-explosion',
+    'atomic-bomb-wave-spawns-nuclear-smoke',
+    'atomic-bomb-wave-spawns-nuke-shockwave-explosion',
+    'atomic-rocket'
+}
+
+---------------------------------------------------------
+-- TERRAIN
+---------------------------------------------------------
+
+---@param surface LuaSurface
+---@param chunkpos ChunkPosition
+---@return table<number>
 local function calculate_noise_chunk(surface, chunkpos)
 	local x, y = chunkpos.x * 32, chunkpos.y * 32
 
@@ -61,43 +84,15 @@ local function calculate_noise_chunk(surface, chunkpos)
     return surface.calculate_tile_properties({ 'ms_tile_dictionary_nauvis' }, positions).ms_tile_dictionary_nauvis
 end
 
+---@param surface LuaSurface
+---@param positions table<MapPosition>
+---@return table<string, table<number>>
 local function calculate_noise(surface, positions)
 	return surface.calculate_tile_properties({ 'ms_tile_dictionary_nauvis', 'ms_ore_richness_nauvis' }, positions)
 end
 
-function Terrain.on_chunk_generated(event)
-    local surface = event.surface
-    local chunkpos = event.position
-    local values = calculate_noise_chunk(surface, chunkpos, properties)
-
-    local tiles = {}
-	local water_tiles = {}
-    local X, Y = chunkpos.x * 32, chunkpos.y * 32
-    local i = 1
-    for x = 0, 31 do
-        for y = 0, 31 do
-            local name = TILES_MAP[values[i]] or DEFAULT_TILE
-			local position = { x = X+x, y = Y+y }
-            tiles[i] = { name = name, position = position }
-            i = i + 1
-
-			if name == 'water-shallow' then
-				water_tiles[#water_tiles+1] = position
-			end
-        end
-    end
-
-    surface.set_tiles(tiles, true)
-    surface.regenerate_decorative(nil, { event.position })
-
-	-- Add fish
-	for _, position in pairs(water_tiles) do
-		if math_random(1, 16) == 1 then
-			surface.create_entity{ name = 'fish', position = position }
-		end
-	end
-end
-
+---@param positions table<MapPosition>
+---@return table<MapPosition>
 local function unpack(positions)
 	local result = {}
 	for _, position in ipairs(positions) do
@@ -110,6 +105,9 @@ local function unpack(positions)
 	return result
 end
 
+---@param surface LuaSurface
+---@param positions table<MapPosition>
+---@param rewards table<boolean>
 function Terrain.reveal_tiles(surface, positions, rewards)
 	positions = unpack(positions)
 
@@ -165,5 +163,90 @@ function Terrain.reveal_tiles(surface, positions, rewards)
 		create_entity{ name = r.name, position = r.position, amount = r.amount }
 	end
 end
+
+---------------------------------------------------------
+-- EFFECTS
+---------------------------------------------------------
+
+---@param surface LuaSurface
+---@param position MapPosition
+function Terrain.explosion(surface, position, player_index)
+	local cause
+
+	if surface.count_entities_filtered{ name = EXPLOSIONS, radius = 6, limit = 1 } == 0 then
+		cause = surface.create_entity{
+			name = 'atomic-rocket',
+			position = { position.x + 1, position.y + 1 },
+			target = { position.x + 1, position.y + 1 },
+			speed = 1,
+			force = FORCE_NAME,
+		}
+	end
+
+	local player = game.get_player(player_index)
+	if player and player.valid then
+		if player.character and player.character.valid then
+			player.character.die(FORCE_NAME, cause)
+		end
+	end
+end
+
+---------------------------------------------------------
+-- EVENT HANDLERS
+---------------------------------------------------------
+
+local function on_chunk_generated(event)
+    local surface = event.surface
+    local chunkpos = event.position
+    local values = calculate_noise_chunk(surface, chunkpos, properties)
+
+    local tiles = {}
+	local water_tiles = {}
+    local X, Y = chunkpos.x * 32, chunkpos.y * 32
+    local i = 1
+    for x = 0, 31 do
+        for y = 0, 31 do
+            local name = TILES_MAP[values[i]] or DEFAULT_TILE
+			local position = { x = X+x, y = Y+y }
+            tiles[i] = { name = name, position = position }
+            i = i + 1
+
+			if name == 'water-shallow' then
+				water_tiles[#water_tiles+1] = position
+			end
+        end
+    end
+
+    surface.set_tiles(tiles, true)
+    surface.regenerate_decorative(nil, { event.position })
+
+	-- Add fish
+	for _, position in pairs(water_tiles) do
+		if math_random(1, 16) == 1 then
+			surface.create_entity{ name = 'fish', position = position }
+		end
+	end
+end
+
+local function on_player_respawned(event)
+	local surface = game.get_surface(SURFACE_INDEX)
+	if not (surface and surface.valid) then
+		return
+	end
+
+	surface.destroy_decoratives(NUCLEAR_DECORATIVES)
+	for _, s in pairs(surface.find_entities_filtered(NUCLEAR_CORPSES)) do
+		s.destroy()
+	end
+end
+
+---------------------------------------------------------
+-- EXPORTS
+---------------------------------------------------------
+
+Terrain.events = {
+	--[defines.events.on_chunk_generated] = on_chunk_generated,
+	[defines.events.on_player_respawned] = on_player_respawned,
+}
 
 return Terrain
