@@ -3,6 +3,8 @@ local Debug = require 'scripts.debug'
 local Queue = require 'scripts.queue'
 local Terrain = require 'scripts.terrain'
 
+local _DEBUG = false
+
 local Msw = {}
 
 ---------------------------------------------------------
@@ -62,7 +64,7 @@ local entity_update_queue = Queue.new()
 local tiles = {}           -- tiles['x_y'] = enum
 local archived_chunks = {} -- archived chunks
 local archive_chunk_list = {}
-local this = { seed = 12345, _DEBUG = false, _SOLVE = false }
+local this = { seed = 12345, _DEBUG = _DEBUG, _SOLVE = _DEBUG }
 local CHUNK = 32
 
 ---------------------------------------------------------
@@ -633,6 +635,9 @@ local function process_archive_queue(limit)
             end
         end
 
+        -- Reveal and reward
+        Terrain.reveal_tiles(surface, { engine_to_factorio_tile(cx, cy) }, { is_flagged(cx, cy) })
+
         -- Archive it
         set_tile_enum(cx, cy, TILE_ARCHIVED)
         Msw.update_tile_entity_async(surface, cx, cy)
@@ -978,7 +983,7 @@ local function on_chunk_generated(event)
         return
     end
 
-    local MSW_PER_CHUNK = 32 / TILE_SCALE
+    local MSW_PER_CHUNK = CHUNK / TILE_SCALE
     local msw_cx = math_floor(event.position.x * MSW_PER_CHUNK)
     local msw_cy = math_floor(event.position.y * MSW_PER_CHUNK)
     local updater = (game.tick == 0) and Msw.update_tile_entity or Msw.update_tile_entity_async
@@ -992,7 +997,7 @@ end
 
 local function on_tick()
     process_flood_fill_queue(UPDATE_RATE * 4)
-    process_archive_queue(UPDATE_RATE)
+    process_archive_queue(UPDATE_RATE * 2)
     process_entity_queue(UPDATE_RATE)
     process_archive_chunk_list()
 end

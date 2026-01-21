@@ -1,8 +1,16 @@
 local Terrain = {}
 
-local FREQUENCIES  = prototypes.mod_data.minesweeper.data.frequencies
-local SAND_ORES    = FREQUENCIES.sand
-local GRASS_ORES   = FREQUENCIES.grass
+local math_abs    = math.abs
+local math_max    = math.max
+local math_sqrt   = math.sqrt
+local math_ceil   = math.ceil
+local math_floor  = math.floor
+local math_random = math.random
+
+local _data = prototypes.mod_data.minesweeper.data
+local RICHNESS     = _data.richness
+local SAND_ORES    = _data.frequencies.sand
+local GRASS_ORES   = _data.frequencies.grass
 local DEFAULT_TILE = 'nuclear-ground'
 local TILES_MAP = {
     [1] = 'water-shallow',
@@ -14,7 +22,7 @@ local TILES_MAP = {
     [7] = 'grass-3',
 }
 
-local function calculate_noise(surface, chunkpos, properties)
+local function calculate_noise_chunk(surface, chunkpos)
 	local x, y = chunkpos.x * 32, chunkpos.y * 32
 
 	local positions = {{x,y},{x,y+1},{x,y+2},{x,y+3},{x,y+4},{x,y+5},{x,y+6},{x,y+7},{x,y+8},{x,y+9},{x,y+10},{x,y+11},{x,y+12},{x,y+13},{x,y+14},{x,y+15},{x,y+16},{x,y+17},{x,y+18},{x,y+19},{x,y+20},{x,y+21},{x,y+22},{x,y+23},{x,y+24},{x,y+25},{x,y+26},{x,y+27},{x,y+28},{x,y+29},{x,y+30},{x,y+31},
@@ -50,28 +58,112 @@ local function calculate_noise(surface, chunkpos, properties)
 	{x+30,y},{x+30,y+1},{x+30,y+2},{x+30,y+3},{x+30,y+4},{x+30,y+5},{x+30,y+6},{x+30,y+7},{x+30,y+8},{x+30,y+9},{x+30,y+10},{x+30,y+11},{x+30,y+12},{x+30,y+13},{x+30,y+14},{x+30,y+15},{x+30,y+16},{x+30,y+17},{x+30,y+18},{x+30,y+19},{x+30,y+20},{x+30,y+21},{x+30,y+22},{x+30,y+23},{x+30,y+24},{x+30,y+25},{x+30,y+26},{x+30,y+27},{x+30,y+28},{x+30,y+29},{x+30,y+30},{x+30,y+31},
 	{x+31,y},{x+31,y+1},{x+31,y+2},{x+31,y+3},{x+31,y+4},{x+31,y+5},{x+31,y+6},{x+31,y+7},{x+31,y+8},{x+31,y+9},{x+31,y+10},{x+31,y+11},{x+31,y+12},{x+31,y+13},{x+31,y+14},{x+31,y+15},{x+31,y+16},{x+31,y+17},{x+31,y+18},{x+31,y+19},{x+31,y+20},{x+31,y+21},{x+31,y+22},{x+31,y+23},{x+31,y+24},{x+31,y+25},{x+31,y+26},{x+31,y+27},{x+31,y+28},{x+31,y+29},{x+31,y+30},{x+31,y+31}}
 
-    return surface.calculate_tile_properties(properties, positions)
+    return surface.calculate_tile_properties({ 'ms_tile_dictionary_nauvis' }, positions).ms_tile_dictionary_nauvis
+end
+
+local function calculate_noise(surface, positions)
+	return surface.calculate_tile_properties({ 'ms_tile_dictionary_nauvis', 'ms_ore_richness_nauvis' }, positions)
 end
 
 function Terrain.on_chunk_generated(event)
     local surface = event.surface
     local chunkpos = event.position
-    local properties = { 'ms_tile_dictionary_nauvis' }
-    local values = calculate_noise(surface, chunkpos, properties).ms_tile_dictionary_nauvis
+    local values = calculate_noise_chunk(surface, chunkpos, properties)
 
     local tiles = {}
+	local water_tiles = {}
     local X, Y = chunkpos.x * 32, chunkpos.y * 32
     local i = 1
     for x = 0, 31 do
         for y = 0, 31 do
             local name = TILES_MAP[values[i]] or DEFAULT_TILE
-            tiles[i] = { name = name, position = { x = X+x, y = Y+y }}
+			local position = { x = X+x, y = Y+y }
+            tiles[i] = { name = name, position = position }
             i = i + 1
+
+			if name == 'water-shallow' then
+				water_tiles[#water_tiles+1] = position
+			end
         end
     end
 
     surface.set_tiles(tiles, true)
     surface.regenerate_decorative(nil, { event.position })
+
+	-- Add fish
+	for _, position in pairs(water_tiles) do
+		if math_random(1, 16) == 1 then
+			surface.create_entity{ name = 'fish', position = position }
+		end
+	end
+end
+
+local function unpack(positions)
+	local result = {}
+	for _, position in ipairs(positions) do
+		for x = 0, 1 do
+			for y = 0, 1 do
+				result[#result+1] = { x = position.x + x - 0.5, y = position.y + y - 0.5 }
+			end
+		end
+	end
+	return result
+end
+
+function Terrain.reveal_tiles(surface, positions, rewards)
+	positions = unpack(positions)
+
+	local values = calculate_noise(surface, positions)
+	local dict = values.ms_tile_dictionary_nauvis
+	local richness = values.ms_ore_richness_nauvis
+
+	local tiles = {}
+	local water_tiles = {}
+	local reward_tiles = {}
+
+	for i, position in ipairs(positions) do
+		local name = TILES_MAP[dict[i]] or DEFAULT_TILE
+		tiles[i] = { name = name, position = position }
+
+		if dict[i] == 1 then
+			water_tiles[#water_tiles+1] = position
+		elseif rewards[math_floor(i/4)] then
+			local ore_group = dict[i] < 5 and SAND_ORES or GRASS_ORES
+			local name = ore_group[math_random(#ore_group)]
+			if RICHNESS[name] > 0 then
+				reward_tiles[#reward_tiles+1] = {
+					name = name,
+					position = { x = position.x, y = position.y },
+					amount = richness[i] + RICHNESS[name] + 200 * math_max(math_abs(position.x), math_abs(position.y))
+				}
+			else
+				for x = -1, 0 do
+					for y = -1, 0 do
+						reward_tiles[#reward_tiles+1] = {
+							name = name,
+							position = { x = position.x + x, y = position.y + y },
+							amount = richness[i + x + y * 2]
+						}
+					end
+				end
+			end
+		end
+	end
+
+	surface.set_tiles(tiles, true)
+	local create_entity = surface.create_entity
+
+	-- Add fish
+	for _, position in ipairs(water_tiles) do
+		if math_random(1, 16) == 1 then
+			create_entity{ name = 'fish', position = position }
+		end
+	end
+
+	-- Add ores
+	for _, r in ipairs(reward_tiles) do
+		create_entity{ name = r.name, position = r.position, amount = r.amount }
+	end
 end
 
 return Terrain

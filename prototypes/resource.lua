@@ -7,6 +7,8 @@ local frequencies = {
     grass = {},
 }
 
+local richness = {}
+
 local switch_ore = {
     ['iron-ore']    = { frequency = 15, group = 'grass' },
     ['copper-ore']  = { frequency =  9, group = 'sand'  },
@@ -57,8 +59,11 @@ for name, proto in pairs(data.raw.resource) do
             group[#group + 1] = name
         end
     end
+
+    richness[name] = proto.normal or 0
 end
 
 mgs.autoplace_controls['enemy-base'] = nil
 
+data.raw['mod-data'].minesweeper.data.richness = richness
 data.raw['mod-data'].minesweeper.data.frequencies = frequencies

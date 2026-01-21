@@ -94,7 +94,13 @@ data:extend {
         type = 'noise-expression',
         name = 'ms_tile_dictionary_nauvis',
         expression = 'ms_tile_dictionary(x,y)',
-    }
+    },
+    {
+        type = 'noise-expression',
+        name = 'ms_ore_richness_nauvis',
+        expression = '1000 + 3 * sqrt(x*x + y*y)',
+    },
 }
 
 data.raw.planet.nauvis.map_gen_settings.property_expression_names.ms_tile_dictionary_nauvis = 'ms_tile_dictionary_nauvis'
+data.raw.planet.nauvis.map_gen_settings.property_expression_names.ms_ore_richness_nauvis = 'ms_ore_richness_nauvis'
