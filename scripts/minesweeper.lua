@@ -1,4 +1,5 @@
 local Const = require 'scripts.constants'
+local Debug = require 'scripts.debug'
 local Queue = require 'scripts.queue'
 local Terrain = require 'scripts.terrain'
 
@@ -60,9 +61,8 @@ local entity_update_queue = Queue.new()
 
 local tiles = {}           -- tiles['x_y'] = enum
 local archived_chunks = {} -- archived chunks
-local renders = {}
 local archive_chunk_list = {}
-local this = { seed = 12345 }
+local this = { seed = 12345, _DEBUG = false, _SOLVE = false }
 local CHUNK = 32
 
 ---------------------------------------------------------
@@ -190,6 +190,13 @@ end
 ---@return boolean
 local function is_archived(ex, ey)
     return get_tile_enum(ex, ey) == TILE_ARCHIVED
+end
+
+---@param ex number
+---@param ey number
+---@return boolean
+local function is_exploded(ex, ey)
+    return get_tile_enum(ex, ey) == TILE_EXPLODED
 end
 
 ---@param ex number
@@ -704,7 +711,6 @@ local function process_archive_chunk_list()
     archive_chunk_list[ck] = nil
 end
 
-
 ---@param surface LuaSurface
 ---@param ex number
 ---@param ey number
@@ -875,90 +881,20 @@ end
 -- DEBUG RENDERING
 ---------------------------------------------------------
 
-local GREEN = { 0, 255, 0, 0.05 }
-local RED = { 255, 0, 0, 0.05 }
-local BLACK = { 0, 0, 0 }
-local r_rect = rendering.draw_rectangle
-local r_text = rendering.draw_text
+Debug.register_query{
+    is_revealed = is_revealed,
+    is_flagged  = is_flagged,
+    is_exploded = is_exploded,
+    has_mine    = has_mine,
+}
 
--- Draw debug info for one tile
----@param surface LuaSurface
----@param ex number
----@param ey number
----@param offset table<number, number>
----@param player_renders table<LuaRenderingObject>
----@param text string
----@param status boolean
-local function r_couple(surface, ex, ey, offset, size, player_renders, text, status)
-    player_renders[#player_renders + 1] = r_rect {
-        color = status and GREEN or RED,
-        left_top = { TILE_SCALE * ex + offset[1], TILE_SCALE * ey + offset[2] },
-        right_bottom = { TILE_SCALE * ex + size + offset[1], TILE_SCALE * ey + size + offset[2] },
-        filled = true,
-        surface = surface,
-        players = { player_index },
-    }
-    if text then
-        player_renders[#player_renders + 1] = r_text {
-            color = BLACK,
-            text = text,
-            target = { TILE_SCALE * ex + offset[1]+ 0.4, TILE_SCALE * ey + offset[2] + 0.2 },
-            surface = surface,
-            players = { player_index },
-        }
-    end
-end
-
--- Display tile debug info
----@param surface LuaSurface
----@param ex number
----@param ey number
----@param player_index number
-local function display_advanced(surface, ex, ey, player_index)
-    local val = get_tile_enum(ex, ey)
-    local rds = renders[player_index] or {}
-    local o = TILE_SCALE / 2
-    r_couple(surface, ex, ey, { 0, 0 }, TILE_SCALE / 2, rds, 'r', is_revealed(ex, ey))
-    r_couple(surface, ex, ey, { o, 0 }, TILE_SCALE / 2, rds, 'f', is_flagged(ex, ey))
-    r_couple(surface, ex, ey, { 0, o }, TILE_SCALE / 2, rds, 'm', has_mine(ex, ey))
-    r_couple(surface, ex, ey, { o, o }, TILE_SCALE / 2, rds, 'e', val == TILE_EXPLODED)
-    renders[player_index] = rds
-end
-
----@param surface LuaSurface
----@param x number
----@param y number
----@param player_index number
-local function display_simple(surface, ex, ey, player_index)
-    local val = get_tile_enum(ex, ey)
-    local rds = renders[player_index] or {}
-    r_couple(surface, ex, ey, { 0, 0 }, TILE_SCALE, rds, nil, not has_mine(ex, ey))
-    renders[player_index] = rds
-end
-
--- Show 8 surrounding tiles around player
----@param surface LuaSurface
----@param ex number
----@param ey number
----@param player_index number
-local function show_player_surroundings(surface, ex, ey, player_index)
-    for _, r in pairs(renders[player_index] or {}) do
-        r.destroy()
-    end
-    renders[player_index] = {}
-
-    local ps = settings.get_player_settings(player_index)
-    local display
-    if ps['minesweeper-debug-area-advanced'].value then
-        display = display_advanced
-    elseif ps['minesweeper-debug-area-simple'].value then
-        display = display_simple
+local function use_debug_features(surface, ex, ey, player_index)
+    if this._SOLVE then
+        Msw.solve(surface, ex, ey, player_index)
     end
 
-    if display then
-        for _, off in ipairs(ADJ) do
-            display(surface, ex + off[1], ey + off[2], player_index)
-        end
+    if this._DEBUG then
+        Debug.show_player_surroundings(surface, ex, ey, player_index)
     end
 end
 
@@ -980,17 +916,60 @@ local function on_player_changed_position(event)
     local ex, ey = factorio_to_engine_tile(player.physical_position)
     local surface = player.physical_surface
 
-    -- Reveal the tile the player is on
+    -- Reveal the current tile
     Msw.reveal(surface, ex, ey, event.player_index)
 
-    -- Attempt chording around the player
+    -- Attempt chording around tile
     Msw.chord(surface, ex, ey, event.player_index)
 
+    -- Attempt archiving tile
     Msw.archive_async(surface, ex, ey, event.player_index)
-    --Msw.solve(surface, ex, ey, event.player_index)
+    
+    -- Debug
+    use_debug_features(surface, ex, ey, event.player_index)
+end
 
-    -- Show debug tiles around player
-    show_player_surroundings(surface, ex, ey, event.player_index)
+local function on_tile_revealed(event)
+    local entity = validate_custom_input(event)
+    if not entity then
+        return
+    end
+
+    -- Engine tile coordinates
+    local ex, ey = factorio_to_engine_tile(entity.position)
+    local surface = entity.surface
+
+    -- Reveal the current tile
+    Msw.reveal(surface, ex, ey, event.player_index)
+
+    -- Attempt chording around tile
+    Msw.chord(surface, ex, ey, event.player_index)
+
+    -- Attempt archiving tile
+    Msw.archive_async(surface, ex, ey, event.player_index)
+
+    -- Debug
+    use_debug_features(surface, ex, ey, event.player_index)
+end
+
+local function on_tile_flagged(event)
+    local entity = validate_custom_input(event)
+    if not entity then
+        return
+    end
+
+    -- Engine tile coordinates
+    local ex, ey = factorio_to_engine_tile(entity.position)
+    local surface = entity.surface
+
+    -- Flag the current tile
+    Msw.flag(surface, ex, ey, event.player_index)
+
+    -- Attempt archiving tile
+    Msw.archive_async(surface, ex, ey, event.player_index)
+    
+    -- Debug
+    use_debug_features(surface, ex, ey, event.player_index)
 end
 
 local function on_chunk_generated(event)
@@ -1009,49 +988,6 @@ local function on_chunk_generated(event)
             updater(surface, tx, ty)
         end
     end
-end
-
-local function on_tile_revealed(event)
-    local entity = validate_custom_input(event)
-    if not entity then
-        return
-    end
-
-    -- Engine tile coordinates
-    local ex, ey = factorio_to_engine_tile(entity.position)
-    local surface = entity.surface
-
-    -- Reveal the tile the player is on
-    Msw.reveal(surface, ex, ey, event.player_index)
-
-    -- Attempt chording around the player
-    Msw.chord(surface, ex, ey, event.player_index)
-
-    Msw.archive_async(surface, ex, ey, event.player_index)
-    --Msw.solve(surface, ex, ey, event.player_index)
-
-    -- Show debug tiles around player
-    show_player_surroundings(surface, ex, ey, event.player_index)
-end
-
-local function on_tile_flagged(event)
-    local entity = validate_custom_input(event)
-    if not entity then
-        return
-    end
-
-    -- Engine tile coordinates
-    local ex, ey = factorio_to_engine_tile(entity.position)
-    local surface = entity.surface
-
-    -- Flag the current position
-    Msw.flag(surface, ex, ey, event.player_index)
-
-    Msw.archive_async(surface, ex, ey, event.player_index)
-    --Msw.solve(surface, ex, ey, event.player_index)
-
-    -- Show debug tiles around player
-    show_player_surroundings(surface, ex, ey, event.player_index)
 end
 
 local function on_tick()
