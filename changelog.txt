@@ -1,11 +1,6 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.1.0
-Date: 2022.12.31
-  Info:
-    - initial release
-  Changes:
-    - changed X
-  Features:
-    - added feature A
+Version: 0.1.1
+Date: 2026.01.22
   Bugfixes:
-    - fixed issue #1
+    - fixed file paths
+
