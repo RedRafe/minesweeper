@@ -629,8 +629,8 @@ local function archive_chunk(surface, ex, ey)
     end
 
     -- Archive the whole 16×16 region
-    for tx = ex, ex + 16 do
-        for ty = ey, ey + 16 do
+    for tx = cx, cx + 16 do
+        for ty = cy, cy + 16 do
             set_tile_enum(tx, ty, nil)
             Msw.update_tile_entity_async(surface, tx, ty)
         end
