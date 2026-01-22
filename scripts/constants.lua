@@ -1,11 +1,12 @@
 local Public = {}
 
 -- Shared with prototypes
-Public.CHORD_NAME     = 'minesweeper-chording'
-Public.TOOL_NAME      = 'minesweeper-tool'
-Public.KEYBIND_NAME   = 'minesweeper-give-tool'
-Public.CI_REVEAL_TILE = 'minesweeper-tile-reveal'
-Public.CI_FLAG_TILE   = 'minesweeper-tile-flag'
+Public.UNIT_SPAWNER_ID = 'minesweeper-unit-spawner-death'
+Public.CHORD_NAME      = 'minesweeper-chording'
+Public.TOOL_NAME       = 'minesweeper-tool'
+Public.KEYBIND_NAME    = 'minesweeper-give-tool'
+Public.CI_REVEAL_TILE  = 'minesweeper-tile-reveal'
+Public.CI_FLAG_TILE    = 'minesweeper-tile-flag'
 
 -- Tile enums
 -- 0-8: revealed tile with that many adjacent mines

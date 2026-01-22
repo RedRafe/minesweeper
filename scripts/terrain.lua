@@ -10,12 +10,14 @@ local math_floor  = math.floor
 local math_random = math.random
 
 local _data = prototypes.mod_data.minesweeper.data
-local RICHNESS     = _data.richness
-local SAND_ORES    = _data.frequencies.sand
-local GRASS_ORES   = _data.frequencies.grass
-local DEFAULT_TILE = 'nuclear-ground'
-local FORCE_NAME   = Const.FORCE_NAME
-local SURFACE_INDEX = Const.SURFACE_INDEX
+local RICHNESS        = _data.richness
+local SAND_ORES       = _data.frequencies.sand
+local GRASS_ORES      = _data.frequencies.grass
+local DEFAULT_TILE    = 'nuclear-ground'
+local FORCE_NAME      = Const.FORCE_NAME
+local SURFACE_INDEX   = Const.SURFACE_INDEX
+local UNIT_SPAWNER_ID = Const.UNIT_SPAWNER_ID
+
 local TILES_MAP = {
     [1] = 'water-shallow',
     [2] = 'sand-1',
@@ -192,6 +194,15 @@ function Terrain.explosion(surface, position, player_index)
 	end
 end
 
+---@param surface LuaSurface
+---@param position MapPosition
+function Terrain.buried_nest(surface, position)
+	surface.create_entity{
+		name = 'minesweeper-buried-nest',
+		position = { position.x + 1, position.y + 1 },
+	}
+end
+
 ---------------------------------------------------------
 -- EVENT HANDLERS
 ---------------------------------------------------------
@@ -253,11 +264,35 @@ local function on_player_died(event)
 	Terrain.reveal_tiles(cause.surface, search_positions, {})
 end
 
+local function on_script_trigger_effect(event)
+	if not event.effect_id == UNIT_SPAWNER_ID then
+		return
+	end
+	
+	if event.surface_index ~= SURFACE_INDEX then
+		return
+	end
+
+	local entity = event.source_entity
+    if not (entity and entity.valid) then
+        return
+    end
+
+	local evo = math.ceil(game.forces.enemy.get_evolution_factor(entity.surface) * 100)
+
+	entity.surface.create_entity {
+		name = entity.name .. '-evolution-'..tostring(evo),
+		position = entity.position,
+		force = 'enemy',
+	}
+end
+
 ---------------------------------------------------------
 -- EXPORTS
 ---------------------------------------------------------
 
 Terrain.events = {
+	[defines.events.on_script_trigger_effect] = on_script_trigger_effect
 	--[defines.events.on_chunk_generated] = on_chunk_generated,
 }
 

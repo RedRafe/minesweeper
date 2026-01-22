@@ -489,8 +489,8 @@ function Msw.flag(surface, ex, ey, player_index)
 
     if get_tile_enum(ex, ey) == TILE_FLAGGED then
         set_tile_enum(ex, ey, TILE_HIDDEN)
-        if has_mine(ex, ey) then
-            -- do stuff???
+        if not has_mine(ex, ey) then
+            Terrain.buried_nest(surface, engine_to_factorio_tile(ex, ey))
         end
     else
         set_tile_enum(ex, ey, TILE_FLAGGED)

@@ -27,6 +27,12 @@ local function entity(params)
         map_color = { 255, 255, 255, 0 },
         friendly_map_color = { 255, 255, 255, 0 },
         enemy_map_color = { 255, 255, 255, 0 },
+        flags = {
+            'not-deconstructable',
+            'not-blueprintable',
+            'not-repairable',
+            'not-flammable',
+        }
     }
 end
 
@@ -34,7 +40,8 @@ data:extend{
     {
         type = 'item-subgroup',
         name = 'minesweeper',
-        group = 'other'
+        group = 'other',
+        order = 'minesweeper-a'
     },
     entity{ name = '1' },
     entity{ name = '2' },
@@ -58,6 +65,7 @@ data:extend{
     entity{ name = 'unknown' },
 }
 
+-- Remove long-lasting effects of nuclear bomb (atmoic-rocket)
 data.raw.corpse['huge-scorchmark'].time_before_removed = 10 * 60
 data.raw.explosion['nuke-effects-nauvis'].created_effect = nil
 table.remove(data.raw.projectile['atomic-rocket'].action.action_delivery.target_effects, 11)

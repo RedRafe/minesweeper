@@ -10,6 +10,7 @@ data:extend{
 require 'prototypes.collision-layer'
 require 'prototypes.custom-input'
 require 'prototypes.font'
+require 'prototypes.enemy'
 require 'prototypes.entity'
 require 'prototypes.event'
 require 'prototypes.noise'
