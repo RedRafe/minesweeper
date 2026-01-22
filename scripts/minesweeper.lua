@@ -576,7 +576,7 @@ local function process_archive_queue(limit)
         Msw.update_tile_entity_async(surface, cx, cy)
 
         -- Attempt chunk archive (async-friendly)
-        Msw.archive_chunk_async(surface, cx, cy)
+        --Msw.archive_chunk_async(surface, cx, cy)
 
         -- Expand flood-fill only if the tile is archived now
         if is_archived(cx, cy) then
