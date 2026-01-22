@@ -1017,7 +1017,7 @@ Msw.on_init = function()
 
     -- Seed minesweeper engine
     local surface = game.get_surface(SURFACE_INDEX)
-    if not storage._DEBUG and surface then
+    if not storage._DEBUG then
         this.seed = surface.map_gen_settings.seed
     end
 
