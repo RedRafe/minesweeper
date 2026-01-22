@@ -14,7 +14,7 @@ data:extend {
     {
         type = 'item-with-label',
         name = Const.TOOL_NAME,
-        icon = '__minesweeper__/graphics/minesweeper-unknown-64.png',
+        icon = '__mine-sweeper__/graphics/minesweeper-unknown-64.png',
         icon_size = 64,
         stack_size = 1,
         flags = { 'not-stackable', 'only-in-cursor', 'spawnable' },
@@ -38,9 +38,9 @@ data:extend {
         action = 'spawn-item',
         item_to_spawn = Const.TOOL_NAME,
         associated_control_input = Const.KEYBIND_NAME,
-        icon = '__minesweeper__/graphics/minesweeper-shortcut-64.png',
+        icon = '__mine-sweeper__/graphics/minesweeper-shortcut-64.png',
         icon_size = 64,
-        small_icon = '__minesweeper__/graphics/minesweeper-shortcut-64.png',
+        small_icon = '__mine-sweeper__/graphics/minesweeper-shortcut-64.png',
         small_icon_size = 64,
     },
     -- Keybind

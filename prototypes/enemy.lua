@@ -149,7 +149,7 @@ local function create_evolution_corpse(entity, evo, evolution_effects)
                 'not-selectable-in-game',
             },
             icons = {
-                { icon = '__minesweeper__/graphics/buried-tile.png' },
+                { icon = '__mine-sweeper__/graphics/buried-tile.png' },
                 { icon = entity.icon, size = entity.icon_size },
             },
             localised_name = {'', {'entity-name.' .. entity.name}, ' raffle evo: ', tostring(evo)},
@@ -220,7 +220,7 @@ data:extend({
                 },
             },
         },
-        icon = '__minesweeper__/graphics/buried-nest.png',
+        icon = '__mine-sweeper__/graphics/buried-nest.png',
         localised_name = {'entity-name.buried-nest'},
         subgroup = 'minesweeper-effects',
     },

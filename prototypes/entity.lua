@@ -10,10 +10,10 @@ local function entity(params)
             left_top = { -1.0, -1.0 },
             right_bottom = { 1.0, 1.0 }
         },
-        icon = '__minesweeper__/graphics/minesweeper-'..(params.icon or params.name)..'.jpg',
+        icon = '__mine-sweeper__/graphics/minesweeper-'..(params.icon or params.name)..'.jpg',
         icon_size = 894,
         pictures = {
-            filename = '__minesweeper__/graphics/minesweeper-'..(params.icon or params.name)..'.jpg',
+            filename = '__mine-sweeper__/graphics/minesweeper-'..(params.icon or params.name)..'.jpg',
             size = 894,
             scale = 64 / 894,
         },
