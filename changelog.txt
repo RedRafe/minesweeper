@@ -3,6 +3,7 @@ Version: 0.1.2
 Date: 2026.01.22
   Bugfixes:
     - Fixed archiving logic
+    - Fixed debug options still showing renders
 
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.1
