@@ -5,6 +5,8 @@ Uses custom tile prototypes, reveal/flag/chord mechanics, async flood-fill, and 
 
 ---
 
+![minesweeper-overview](https://github.com/RedRafe/minesweeper/blob/main/archive/minesweeper-overview.png?raw=true)
+
 ## **Features**
 
 ### 🧨 Classic Minesweeper Gameplay
@@ -47,9 +49,13 @@ Uses custom tile prototypes, reveal/flag/chord mechanics, async flood-fill, and 
 
 ## **Credits**
 
-**Code & Design:** *Your name*  
-**Thumbnail Art:** *Your name / AI-assisted*  
-**Special Thanks:** Factorio Modding Community
+Credits to [tomthedeviant2](https://www.deviantart.com/tomthedeviant2/gallery) for the wonderful Minesweeper assets
+
+Credits to [MewMew](https://github.com/M3wM3w) for original idea & implementation
+
+Credits to [_CodeGreen](https://mods.factorio.com/user/_CodeGreen) for all the support, ideas, ptototype hacks
+
+Credits to [notnotmelon](https://mods.factorio.com/user/notnotmelon) for the super otimized runtime scripts
 
 ---
 
