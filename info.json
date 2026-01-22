@@ -1,10 +1,10 @@
 {
-  "name": "minesweeper",
+  "name": "mine-sweeper",
   "version": "0.1.0",
   "title": "Minesweeper",
   "author": "RedRafe",
   "source": "https://github.com/RedRafe/minesweeper",
-  "homepage": "https://mods.factorio.com/mod/minesweeper",
+  "homepage": "https://mods.factorio.com/mods/mine-sweeper",
   "dependencies": [
     "base >= 2.0"
   ],

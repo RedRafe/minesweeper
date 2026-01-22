@@ -5,7 +5,9 @@ Uses custom tile prototypes, reveal/flag/chord mechanics, async flood-fill, and 
 
 ---
 
+[Demo video link](https://github.com/RedRafe/minesweeper/blob/main/archive/minesweeper-demo.mp4)
 ![minesweeper-overview](https://github.com/RedRafe/minesweeper/blob/main/archive/minesweeper-overview.png?raw=true)
+
 
 ## **Features**
 
