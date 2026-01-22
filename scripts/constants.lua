@@ -1,6 +1,7 @@
 local Public = {}
 
 -- Shared with prototypes
+Public.CHORD_NAME     = 'minesweeper-chording'
 Public.TOOL_NAME      = 'minesweeper-tool'
 Public.KEYBIND_NAME   = 'minesweeper-give-tool'
 Public.CI_REVEAL_TILE = 'minesweeper-tile-reveal'

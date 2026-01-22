@@ -115,9 +115,8 @@ Public.add_commands = function()
             return player.print('[Minesweeper] selected command is Admin only')
         end
 
-        local opt = storage.minesweeper.this
-        opt._DEBUG = not opt._DEBUG
-        player.print('Minesweeper DEBUG mode: '..(opt._DEBUG and 'ON' or 'OFF'))
+        storage._DEBUG = not storage._DEBUG
+        player.print('Minesweeper DEBUG mode: '..(storage._DEBUG and 'ON' or 'OFF'))
     end)
 
     commands.add_command('minesweeper-solve', 'Toggle SOLVE mode ON/OFF [Admin only]', function(event)
@@ -126,9 +125,8 @@ Public.add_commands = function()
             return player.print('[Minesweeper] selected command is Admin only')
         end
 
-        local opt = storage.minesweeper.this
-        opt._SOLVE = not opt._SOLVE
-        player.print('Minesweeper SOLVE mode: '..(opt._SOLVE and 'ON' or 'OFF'))
+        storage._SOLVE = not storage._SOLVE
+        player.print('Minesweeper SOLVE mode: '..(storage._SOLVE and 'ON' or 'OFF'))
     end)
 end
 

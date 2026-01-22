@@ -77,7 +77,7 @@ data:extend {
         local_expressions = {
             sm = 'ms_small_areas(x, y)',
             cr = 'ms_cave_rivers(x, y)',
-            is_river = 'abs(cr) < 0.08',
+            is_river = '(abs(cr) < 0.08) * (distance > 32)',
             sm_q = '4 * sm',
 
             -- Water bucket

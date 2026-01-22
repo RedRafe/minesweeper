@@ -178,7 +178,7 @@ end
 
 ---@return table<{name: string, score: number, tiles_revealed: number, mines_marked: number, mines_exploded: number, color: Color}>
 local function get_scoreboard_data()
-    local scoreboard = {
+    local scoreboard = storage._DEBUG and {
         { name = 'George', score = 27, tiles_revealed = 12000, mines_marked = 24, mines_exploded = 27, color = { 255, 255, 255 } },
         { name = 'Alice',  score = 45, tiles_revealed = 15000, mines_marked = 30, mines_exploded =  2, color = { 255,   0,   0 } },
         { name = 'Bob',    score = 33, tiles_revealed = 13000, mines_marked = 25, mines_exploded =  5, color = {   0, 255,   0 } },
@@ -199,7 +199,7 @@ local function get_scoreboard_data()
         { name = 'Quinn',  score = 46, tiles_revealed = 15800, mines_marked = 32, mines_exploded =  3, color = {  75,   0, 130 } },
         { name = 'Rachel', score = 29, tiles_revealed = 12400, mines_marked = 20, mines_exploded = 11, color = { 255, 105, 180 } },
         { name = 'Sam',    score = 54, tiles_revealed = 16800, mines_marked = 37, mines_exploded =  2, color = {   0,   0,   0 } },
-    }
+    } or {}
 
     for player_index, ps in pairs(player_stats) do
         local player = game.get_player(player_index)

@@ -170,6 +170,7 @@ end
 
 ---@param surface LuaSurface
 ---@param position MapPosition
+---@param player_index number
 function Terrain.explosion(surface, position, player_index)
 	local cause
 
@@ -228,16 +229,28 @@ local function on_chunk_generated(event)
 	end
 end
 
-local function on_player_respawned(event)
-	local surface = game.get_surface(SURFACE_INDEX)
-	if not (surface and surface.valid) then
+local function on_player_died(event)
+	local cause = event.cause
+	if not (cause and cause.valid) then
 		return
 	end
 
-	surface.destroy_decoratives(NUCLEAR_DECORATIVES)
-	for _, s in pairs(surface.find_entities_filtered(NUCLEAR_CORPSES)) do
-		s.destroy()
+	local force = cause.force
+	if not (force and force.name == FORCE_NAME) then
+		return
 	end
+
+	local p = cause.position
+	local search_positions = {}
+	do
+		for x = -4, 4 do
+			for y = -4, 4 do
+				search_positions[#search_positions+1] = { x = p.x + x, y = p.y + y }
+			end
+		end
+	end
+
+	Terrain.reveal_tiles(cause.surface, search_positions, {})
 end
 
 ---------------------------------------------------------
@@ -246,7 +259,6 @@ end
 
 Terrain.events = {
 	--[defines.events.on_chunk_generated] = on_chunk_generated,
-	[defines.events.on_player_respawned] = on_player_respawned,
 }
 
 return Terrain

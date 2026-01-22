@@ -57,3 +57,7 @@ data:extend{
     entity{ name = 'trophy' },
     entity{ name = 'unknown' },
 }
+
+data.raw.corpse['huge-scorchmark'].time_before_removed = 10 * 60
+data.raw.explosion['nuke-effects-nauvis'].created_effect = nil
+table.remove(data.raw.projectile['atomic-rocket'].action.action_delivery.target_effects, 11)

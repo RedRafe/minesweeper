@@ -4,6 +4,7 @@ local Queue = require 'scripts.queue'
 local Terrain = require 'scripts.terrain'
 
 local _DEBUG = false
+local _SOLVE = false
 
 local Msw = {}
 
@@ -12,8 +13,10 @@ local Msw = {}
 ---------------------------------------------------------
 
 local ADJ           = Const.ADJ
+local CHORD_NAME    = Const.CHORD_NAME
 local FORCE_NAME    = Const.FORCE_NAME
 local SURFACE_INDEX = Const.SURFACE_INDEX
+local TILE_ARCHIVED = Const.TILE_ARCHIVED
 local TILE_EMPTY    = Const.TILE_EMPTY
 local TILE_ENTITIES = Const.TILE_ENTITIES
 local TILE_EXPLODED = Const.TILE_EXPLODED
@@ -21,7 +24,6 @@ local TILE_FLAGGED  = Const.TILE_FLAGGED
 local TILE_HIDDEN   = Const.TILE_HIDDEN
 local TILE_MINE     = Const.TILE_MINE
 local TILE_SCALE    = Const.TILE_SCALE
-local TILE_ARCHIVED = Const.TILE_ARCHIVED
 local TOOL_NAME     = Const.TOOL_NAME
 
 ---------------------------------------------------------
@@ -64,7 +66,8 @@ local entity_update_queue = Queue.new()
 local tiles = {}           -- tiles['x_y'] = enum
 local archived_chunks = {} -- archived chunks
 local archive_chunk_list = {}
-local this = { seed = 12345, _DEBUG = _DEBUG, _SOLVE = _DEBUG }
+local player_settings = {}
+local this = { seed = 12345 }
 local CHUNK = 32
 
 ---------------------------------------------------------
@@ -83,7 +86,10 @@ function init_storage()
         entity_update_queue = entity_update_queue,
         archive_fill_queue = archive_fill_queue,
         archive_chunk_list = archive_chunk_list,
+        player_settings = player_settings,
     }
+    storage._DEBUG = _DEBUG
+    storage._SOLVE = _SOLVE
 end
 
 function load_storage()
@@ -99,6 +105,7 @@ function load_storage()
     entity_update_queue = tbl.entity_update_queue
     archive_fill_queue = tbl.archive_fill_queue
     archive_chunk_list = tbl.archive_chunk_list
+    player_settings = tbl.player_settings
 end
 
 ---------------------------------------------------------
@@ -261,7 +268,7 @@ end
 ---@param ey number
 ---@param surface LuaSurface
 ---@param player_index number
-local function flood_fill(ex, ey, surface, player_index)
+local function flood_fill(surface, ex, ey, player_index)
     local revealed = {}
     local queue = { { ex, ey } }
     local visited = {}
@@ -304,7 +311,7 @@ end
 ---@param ey number
 ---@param surface LuaSurface
 ---@param player_index number
-local function flood_fill_async(ex, ey, surface, player_index)
+local function flood_fill_async(surface, ex, ey, player_index)
     local tile_queue = Queue.new()
     tile_queue:push { ex, ey }
 
@@ -445,7 +452,7 @@ function Msw.reveal(surface, ex, ey, player_index)
         revealed_tiles[#revealed_tiles+1] = { x = ex, y = ey }
 
         if adj == 0 then
-            flood_fill_async(ex, ey, surface, player_index)
+            flood_fill_async(surface, ex, ey, player_index)
         end
     end
 
@@ -482,12 +489,11 @@ function Msw.flag(surface, ex, ey, player_index)
 
     if get_tile_enum(ex, ey) == TILE_FLAGGED then
         set_tile_enum(ex, ey, TILE_HIDDEN)
-    else
-        set_tile_enum(ex, ey, TILE_FLAGGED)
-
         if has_mine(ex, ey) then
             -- do stuff???
         end
+    else
+        set_tile_enum(ex, ey, TILE_FLAGGED)
     end
 
     Msw.update_tile_entity(surface, ex, ey)
@@ -511,6 +517,10 @@ end
 ---@param ey number
 ---@param player_index number
 function Msw.chord(surface, ex, ey, player_index)
+    if not player_settings[player_index] then
+        return
+    end
+
     if not is_revealed(ex, ey) then
         return
     end
@@ -868,11 +878,11 @@ Debug.register_query{
 }
 
 local function use_debug_features(surface, ex, ey, player_index)
-    if this._SOLVE then
+    if storage._SOLVE then
         Msw.solve(surface, ex, ey, player_index)
     end
 
-    if this._DEBUG then
+    if storage._DEBUG then
         Debug.show_player_surroundings(surface, ex, ey, player_index)
     end
 end
@@ -976,25 +986,70 @@ local function on_tick()
     process_archive_chunk_list()
 end
 
+local function on_settings_changed(event)
+    if event.setting ~= CHORD_NAME then
+        return
+    end
+
+    local gps = settings.get_player_settings
+    for player_index in pairs(game.players) do
+        player_settings[player_index] = gps(player_index)[CHORD_NAME].value
+    end
+end
+
+local function on_player_created(event)
+    local i = event.player_index
+    player_settings[i] = settings.get_player_settings(i)[CHORD_NAME].value
+end
+
 ---------------------------------------------------------
 -- EXPORTS
 ---------------------------------------------------------
 
 Msw.on_init = function()
     init_storage()
+    on_settings_changed({ name = CHORD_NAME })
+
+    -- Create enemy force
     if not game.forces[FORCE_NAME] then
         game.create_force(FORCE_NAME)
     end
+
+    -- Seed minesweeper engine
+    local surface = game.get_surface(SURFACE_INDEX)
+    if not storage._DEBUG and surface then
+        this.seed = surface.map_gen_settings.seed
+    end
+
+    -- Draw starter area
+    local function apply(radius, callback)
+        for x = -radius, radius do
+            for y = -radius, radius do
+                if math.sqrt(x*x + y*y) < radius then
+                    local ex, ey = factorio_to_engine_tile{ x = x, y = y }
+                    callback(ex, ey)
+                end
+            end
+        end
+    end
+
+    apply(10, function(ex, ey)
+        if has_mine(ex, ey) then
+            set_tile_enum(ex, ey, TILE_FLAGGED)
+        end
+    end)
 end
 
 Msw.on_load = load_storage
 
 Msw.events = {
-    [defines.events.on_player_changed_position] = on_player_changed_position,
-    [defines.events.on_chunk_generated]         = on_chunk_generated,
-    [defines.events.on_tick]                    = on_tick,
-    [Const.CI_REVEAL_TILE]                      = on_tile_revealed,
-    [Const.CI_FLAG_TILE]                        = on_tile_flagged,
+    [defines.events.on_runtime_mod_setting_changed] = on_settings_changed,
+    [defines.events.on_player_created]              = on_player_created,
+    [defines.events.on_player_changed_position]     = on_player_changed_position,
+    [defines.events.on_chunk_generated]             = on_chunk_generated,
+    [defines.events.on_tick]                        = on_tick,
+    [Const.CI_REVEAL_TILE]                          = on_tile_revealed,
+    [Const.CI_FLAG_TILE]                            = on_tile_flagged,
 }
 
 return Msw
