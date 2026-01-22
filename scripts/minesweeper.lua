@@ -629,8 +629,9 @@ local function archive_chunk(surface, ex, ey)
     end
 
     -- Archive the whole 16×16 region
-    for tx = cx, cx + 16 do
-        for ty = cy, cy + 16 do
+    local cx0, cy0 = (cx * CHUNK), (cy * CHUNK)
+    for tx = cx0, cx0 + 16 do
+        for ty = cy0, cy0 + 16 do
             set_tile_enum(tx, ty, nil)
             Msw.update_tile_entity_async(surface, tx, ty)
         end
@@ -830,6 +831,7 @@ local function use_debug_features(surface, ex, ey, player_index)
         Msw.solve(surface, ex, ey, player_index)
     end
 
+    Debug.destroy_renders(player_index)
     if storage._DEBUG then
         Debug.show_player_surroundings(surface, ex, ey, player_index)
     end

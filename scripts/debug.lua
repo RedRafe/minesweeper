@@ -80,17 +80,19 @@ local function display_simple(surface, ex, ey, player_index)
     renders[player_index] = rds
 end
 
+Public.destroy_renders = function(player_index)
+    for _, r in pairs(renders[player_index] or {}) do
+        r.destroy()
+    end
+    renders[player_index] = {}
+end
+
 -- Show 8 surrounding tiles around player
 ---@param surface LuaSurface
 ---@param ex number
 ---@param ey number
 ---@param player_index number
 Public.show_player_surroundings = function(surface, ex, ey, player_index)
-    for _, r in pairs(renders[player_index] or {}) do
-        r.destroy()
-    end
-    renders[player_index] = {}
-
     local ps = settings.get_player_settings(player_index)
     local display
     if ps['minesweeper-debug-area-advanced'].value then
