@@ -28,10 +28,6 @@ local function choose_fallback_group()
     end
 end
 
-local function get_autoplace_control(resource_name)
-
-end
-
 local mgs = data.raw.planet.nauvis.map_gen_settings
 local entity_settings = mgs.autoplace_settings.entity.settings
 local autoplace_controls = data.raw['autoplace-control']
@@ -49,7 +45,7 @@ for name, proto in pairs(data.raw.resource) do
         else
             autoplace_controls[name].hidden = true
         end
-        
+
         -- Get resource config
         local cfg = switch_ore[name] or switch_ore.default
         local group = cfg.group and frequencies[cfg.group] or choose_fallback_group()

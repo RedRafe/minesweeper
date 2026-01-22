@@ -74,14 +74,11 @@ local CHUNK = 32
 -- STORAGE
 ---------------------------------------------------------
 
-function init_storage()
+local function init_storage()
     storage.minesweeper = {
         this = this,
         tiles = tiles,
         archived_chunks = archived_chunks,
-        global_stats = global_stats,
-        player_stats = player_stats,
-        renders = renders,
         flood_fill_queue = flood_fill_queue,
         entity_update_queue = entity_update_queue,
         archive_fill_queue = archive_fill_queue,
@@ -92,15 +89,11 @@ function init_storage()
     storage._SOLVE = _SOLVE
 end
 
-function load_storage()
+local function load_storage()
     local tbl = storage.minesweeper
     this = tbl.this
     tiles = tbl.tiles
     archived_chunks = tbl.archived_chunks
-    global_stats = tbl.global_stats
-    player_stats = tbl.player_stats
-    renders = tbl.renders
-    renders = tbl.renders
     flood_fill_queue = tbl.flood_fill_queue
     entity_update_queue = tbl.entity_update_queue
     archive_fill_queue = tbl.archive_fill_queue
@@ -268,49 +261,6 @@ end
 ---@param ey number
 ---@param surface LuaSurface
 ---@param player_index number
-local function flood_fill(surface, ex, ey, player_index)
-    local revealed = {}
-    local queue = { { ex, ey } }
-    local visited = {}
-
-    while #queue > 0 do
-        local node = table.remove(queue, 1)
-        local cx, cy = node[1], node[2]
-        local k = tile_key(cx, cy)
-        if visited[k] then goto continue end
-        visited[k] = true
-
-        if is_archived(cx, cy) then goto continue end
-        if is_flagged(cx, cy) then goto continue end
-        if has_mine(cx, cy) then goto continue end
-
-        if not is_revealed(cx, cy) then
-            local adj = adjacent_mines(cx, cy)
-            set_tile_enum(cx, cy, adj)
-            revealed[#revealed+1] = { x = cx, y = cy }
-            Msw.update_tile_entity_async(surface, cx, cy)
-        end
-
-        if adjacent_mines(cx, cy) == 0 then
-            for _, off in ipairs(ADJ) do
-                local nx, ny = cx + off[1], cy + off[2]
-                local nk = tile_key(nx, ny)
-                if not visited[nk] then
-                    queue[#queue+1] = { nx, ny }
-                end
-            end
-        end
-
-        ::continue::
-    end
-
-    return revealed
-end
-
----@param ex number
----@param ey number
----@param surface LuaSurface
----@param player_index number
 local function flood_fill_async(surface, ex, ey, player_index)
     local tile_queue = Queue.new()
     tile_queue:push { ex, ey }
@@ -405,11 +355,11 @@ local function validate_custom_input(event)
     if not (cursor and cursor.valid_for_read) then
         return
     end
-    
+
     if cursor.name ~= TOOL_NAME then
         return
     end
-    
+
     local selected = player.selected
     if not (selected and selected.valid) then
         return
@@ -459,9 +409,9 @@ function Msw.reveal(surface, ex, ey, player_index)
     Msw.update_tile_entity(surface, ex, ey)
 
     -- Broadcast event
-    local tiles = {}
+    local event_tiles = {}
     for _, t in pairs(revealed_tiles) do
-        tiles[#tiles + 1] = { position = engine_to_factorio_tile(t.x, t.y), type = get_tile_enum(t.x, t.y) }
+        event_tiles[#event_tiles + 1] = { position = engine_to_factorio_tile(t.x, t.y), type = get_tile_enum(t.x, t.y) }
     end
 
     script.raise_event(defines.events.on_tile_revealed, {
@@ -469,7 +419,7 @@ function Msw.reveal(surface, ex, ey, player_index)
         name = defines.events.on_tile_revealed,
         player_index = player_index,
         surface_index = surface.index,
-        tiles = tiles,
+        tiles = event_tiles,
     })
 
     return revealed_tiles
@@ -587,7 +537,6 @@ local function process_archive_queue(limit)
     local tile_queue = job.tile_queue
     local visited    = job.visited
     local surface    = job.surface
-    local player     = job.player_index
 
     local count = 0
 
@@ -703,8 +652,7 @@ end
 ---@param surface LuaSurface
 ---@param ex number
 ---@param ey number
----@param player_index number
-function Msw.archive(surface, ex, ey, player_index)
+function Msw.archive(surface, ex, ey, _)
     if is_archived(ex, ey) then
         return
     end
@@ -913,7 +861,7 @@ local function on_player_changed_position(event)
 
     -- Attempt archiving tile
     Msw.archive_async(surface, ex, ey, event.player_index)
-    
+
     -- Debug
     use_debug_features(surface, ex, ey, event.player_index)
 end
@@ -956,7 +904,7 @@ local function on_tile_flagged(event)
 
     -- Attempt archiving tile
     Msw.archive_async(surface, ex, ey, event.player_index)
-    
+
     -- Debug
     use_debug_features(surface, ex, ey, event.player_index)
 end

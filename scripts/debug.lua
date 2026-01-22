@@ -44,7 +44,6 @@ local function r_couple(surface, ex, ey, offset, size, player_renders, text, sta
         right_bottom = { TILE_SCALE * ex + size + offset[1], TILE_SCALE * ey + size + offset[2] },
         filled = true,
         surface = surface,
-        players = { player_index },
     }
     if text then
         player_renders[#player_renders + 1] = r_text {
@@ -52,7 +51,6 @@ local function r_couple(surface, ex, ey, offset, size, player_renders, text, sta
             text = text,
             target = { TILE_SCALE * ex + offset[1]+ 0.4, TILE_SCALE * ey + offset[2] + 0.2 },
             surface = surface,
-            players = { player_index },
         }
     end
 end
@@ -103,7 +101,7 @@ Public.show_player_surroundings = function(surface, ex, ey, player_index)
 
     if display then
         for _, off in pairs(ADJ) do
-            display(surface, ex + off[1], ey + off[2], player_index, vals)
+            display(surface, ex + off[1], ey + off[2], player_index)
         end
     end
 end

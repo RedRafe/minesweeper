@@ -10,8 +10,6 @@ local Score = {}
 local POINTS        = Const.POINTS
 local TILE_EXPLODED = Const.TILE_EXPLODED
 local TILE_FLAGGED  = Const.TILE_FLAGGED
-local TILE_HIDDEN   = Const.TILE_HIDDEN
-local TILE_MINE     = Const.TILE_MINE
 
 local top_button_name = Gui.uid_name('button')
 local top_frame_name  = Gui.uid_name('frame')
@@ -83,7 +81,7 @@ local function sort_button(parent, params, settings)
     local flow = parent.add { type = 'flow', direction = 'horizontal' }
     Gui.set_style(flow, { vertical_align = 'center', horizontal_spacing = 4 })
 
-    local button = flow.add {
+    flow.add {
         type = 'button',
         style = 'sort_button',
         caption = params.state and '▼' or '▲',
@@ -91,7 +89,7 @@ local function sort_button(parent, params, settings)
         toggled = (params.key == settings.key)
     }
 
-    local label = flow.add {
+    flow.add {
         type = 'label',
         style = 'minesweeper_label',
         caption = params.caption,
@@ -232,15 +230,15 @@ local function draw_top_gui(player)
         style = 'subheader_frame',
         direction = 'horizontal',
     }
-    
+
     frame.visible = false
 	Gui.set_style(frame, { natural_height = 40, height = 40, padding = 0 })
     Gui.set_data(button, frame)
 
     for group_name, group in pairs(STATS) do
-        local flow = frame.add { type = 'flow', direction = 'horizontal', name = group_name }
+        local group_flow = frame.add { type = 'flow', direction = 'horizontal', name = group_name }
         for _, stat in pairs(group) do
-            flow.add { type = 'sprite-button', sprite = stat.sprite, name = stat.name, tooltip = stat.tooltip }
+            group_flow.add { type = 'sprite-button', sprite = stat.sprite, name = stat.name, tooltip = stat.tooltip }
         end
     end
     frame.player.visible = false

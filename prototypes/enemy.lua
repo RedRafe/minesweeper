@@ -4,7 +4,7 @@ local Const = require 'scripts.constants'
 -- EVOLUTION RAFFLE
 ---------------------------------------------------------
 
-local REPEAT_COUNT = 6
+local REPEAT_COUNT = 8
 
 data:extend{
     {
@@ -138,7 +138,7 @@ local function create_evolution_corpse(entity, evo, evolution_effects)
                 type = 'direct',
                 action_delivery = {
                     type = 'instant',
-                    source_effects = create_source_effects(evolution_effects, 8),
+                    source_effects = create_source_effects(evolution_effects, REPEAT_COUNT),
                 },
             },
             flags = {

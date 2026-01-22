@@ -4,8 +4,6 @@ local Terrain = {}
 
 local math_abs    = math.abs
 local math_max    = math.max
-local math_sqrt   = math.sqrt
-local math_ceil   = math.ceil
 local math_floor  = math.floor
 local math_random = math.random
 
@@ -28,8 +26,6 @@ local TILES_MAP = {
     [7] = 'grass-3',
 }
 
-local NUCLEAR_CORPSES = { type = 'corpse', name = 'huge-scorchmark' }
-local NUCLEAR_DECORATIVES = { name = 'nuclear-ground-patch' }
 local EXPLOSIONS = {
     'atomic-bomb-ground-zero-projectile',
     'atomic-bomb-wave',
@@ -129,18 +125,18 @@ function Terrain.reveal_tiles(surface, positions, rewards)
 			water_tiles[#water_tiles+1] = position
 		elseif rewards[math_floor(i/4)] then
 			local ore_group = dict[i] < 5 and SAND_ORES or GRASS_ORES
-			local name = ore_group[math_random(#ore_group)]
-			if RICHNESS[name] > 0 then
+			local ore_name = ore_group[math_random(#ore_group)]
+			if RICHNESS[ore_name] > 0 then
 				reward_tiles[#reward_tiles+1] = {
-					name = name,
+					name = ore_name,
 					position = { x = position.x, y = position.y },
-					amount = richness[i] + RICHNESS[name] + 200 * math_max(math_abs(position.x), math_abs(position.y))
+					amount = richness[i] + RICHNESS[ore_name] + 200 * math_max(math_abs(position.x), math_abs(position.y))
 				}
 			else
 				for x = -1, 0 do
 					for y = -1, 0 do
 						reward_tiles[#reward_tiles+1] = {
-							name = name,
+							name = ore_name,
 							position = { x = position.x + x, y = position.y + y },
 							amount = richness[i + x + y * 2]
 						}
@@ -210,7 +206,7 @@ end
 local function on_chunk_generated(event)
     local surface = event.surface
     local chunkpos = event.position
-    local values = calculate_noise_chunk(surface, chunkpos, properties)
+    local values = calculate_noise_chunk(surface, chunkpos)
 
     local tiles = {}
 	local water_tiles = {}
@@ -240,35 +236,11 @@ local function on_chunk_generated(event)
 	end
 end
 
-local function on_player_died(event)
-	local cause = event.cause
-	if not (cause and cause.valid) then
-		return
-	end
-
-	local force = cause.force
-	if not (force and force.name == FORCE_NAME) then
-		return
-	end
-
-	local p = cause.position
-	local search_positions = {}
-	do
-		for x = -4, 4 do
-			for y = -4, 4 do
-				search_positions[#search_positions+1] = { x = p.x + x, y = p.y + y }
-			end
-		end
-	end
-
-	Terrain.reveal_tiles(cause.surface, search_positions, {})
-end
-
 local function on_script_trigger_effect(event)
 	if not event.effect_id == UNIT_SPAWNER_ID then
 		return
 	end
-	
+
 	if event.surface_index ~= SURFACE_INDEX then
 		return
 	end
