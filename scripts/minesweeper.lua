@@ -576,7 +576,7 @@ local function process_archive_queue(limit)
         Msw.update_tile_entity_async(surface, cx, cy)
 
         -- Attempt chunk archive (async-friendly)
-        --Msw.archive_chunk_async(surface, cx, cy)
+        Msw.archive_chunk_async(surface, cx, cy)
 
         -- Expand flood-fill only if the tile is archived now
         if is_archived(cx, cy) then
@@ -607,31 +607,29 @@ function Msw.archive_chunk_async(surface, ex, ey)
 
     archive_chunk_list[ck] = {
         surface = surface,
-        ex = ex,
-        ey = ey
+        cx = cx,
+        cy = cy
     }
 end
 
-local function archive_chunk(surface, ex, ey)
-    local cx, cy = get_chunk_of(ex, ey)
+local function archive_chunk(surface, cx, cy)
     local ck = chunk_key(cx, cy)
-
     if archived_chunks[ck] then return end
 
-    -- Check for any tile-entity from this mod in the chunk
-    if surface.count_entities_filtered{
-        area = { { cx, cy }, { cx + 31, cy + 31} },
-        force = FORCE_NAME,
-        type = 'simple-entity-with-force',
-        limit = 1,
-    } > 0 then
-        return
+    local MSW_PER_CHUNK = CHUNK / TILE_SCALE
+    local cx0, cy0 = (cx * MSW_PER_CHUNK), (cy * MSW_PER_CHUNK)
+
+    for tx = cx0, cx0 + MSW_PER_CHUNK - 1 do
+        for ty = cy0, cy0 + MSW_PER_CHUNK - 1 do
+            if get_tile_enum(tx, ty) ~= TILE_ARCHIVED then
+                return
+            end
+        end
     end
 
-    -- Archive the whole 16×16 region
-    local cx0, cy0 = (cx * CHUNK), (cy * CHUNK)
-    for tx = cx0, cx0 + 16 do
-        for ty = cy0, cy0 + 16 do
+    -- Archive the whole region
+    for tx = cx0, cx0 + MSW_PER_CHUNK - 1 do
+        for ty = cy0, cy0 + MSW_PER_CHUNK - 1 do
             set_tile_enum(tx, ty, nil)
             Msw.update_tile_entity_async(surface, tx, ty)
         end
@@ -646,53 +644,10 @@ local function process_archive_chunk_list()
         return
     end
 
-    archive_chunk(c.surface, c.ex, c.ey)
+    archive_chunk(c.surface, c.cx, c.cy)
     archive_chunk_list[ck] = nil
 end
 
----@param surface LuaSurface
----@param ex number
----@param ey number
-function Msw.archive(surface, ex, ey, _)
-    if is_archived(ex, ey) then
-        return
-    end
-
-    if get_tile_enum(ex, ey) ~= TILE_EMPTY then
-        for nx = ex - 2, ex + 2, 1 do
-            for ny = ey - 2, ey + 2, 1 do
-                if not is_revealed(nx, ny) and not (is_flagged(nx, ny) and has_mine(nx, ny)) then
-                    return
-                end
-            end
-        end
-    end
-
-    set_tile_enum(ex, ey, TILE_ARCHIVED)
-    Msw.update_tile_entity(surface, ex, ey)
-
-    -- Attempt archiving chunk
-    local cx, cy = get_chunk_of(ex, ey)
-    if archived_chunks[chunk_key(cx, cy)] then
-        return
-    end
-
-    if surface.count_entities_filtered{
-        area = { { cx, cy }, { cx + 31, cy + 31} },
-        force = FORCE_NAME,
-        type = 'simple-entity-with-force',
-        limit = 1,
-    } > 0 then return end
-
-    for tx = ex, ex + 16 do
-        for ty = ey, ey + 16 do
-            set_tile_enum(tx, ty, nil)
-            Msw.update_tile_entity(surface, tx, ty)
-        end
-    end
-
-    archived_chunks[chunk_key(cx, cy)] = true
-end
 
 ---------------------------------------------------------
 -- SOLVE (modern Minesweeper auto-solving)

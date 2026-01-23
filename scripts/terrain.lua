@@ -175,8 +175,8 @@ function Terrain.explosion(surface, position, player_index)
 	if surface.count_entities_filtered{ name = EXPLOSIONS, radius = 6, limit = 1 } == 0 then
 		cause = surface.create_entity{
 			name = 'atomic-rocket',
-			position = { position.x + 1, position.y + 1 },
-			target = { position.x + 1, position.y + 1 },
+			position = position,
+			target = position,
 			speed = 1,
 			force = FORCE_NAME,
 		}
@@ -195,7 +195,7 @@ end
 function Terrain.buried_nest(surface, position)
 	surface.create_entity{
 		name = 'minesweeper-buried-nest',
-		position = { position.x + 1, position.y + 1 },
+		position = position,
 	}
 end
 
