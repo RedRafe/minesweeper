@@ -1,0 +1,1 @@
+storage.minesweeper.flood_fill_queue:clear()

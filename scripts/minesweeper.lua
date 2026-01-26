@@ -69,6 +69,7 @@ local archive_chunk_list = {}
 local player_settings = {}
 local this = { seed = 12345 }
 local CHUNK = 32
+local FLOOD_MAX_DISTANCE = (32 * 1.5)^2 --2304
 
 ---------------------------------------------------------
 -- STORAGE
@@ -153,6 +154,14 @@ end
 local function key_to_xy(k)
     local x, y = k:match('(%d+)_(%d+)')
     return tonumber(x), tonumber(y)
+end
+
+---@param x1, y1, x2, y2 number
+---@return boolean
+local function flood_distance(x1, y1, x2, y2)
+    local dx = x1 - x2
+    local dy = y1 - y2
+    return (dx*dx + dy*dy) > FLOOD_MAX_DISTANCE
 end
 
 ---------------------------------------------------------
@@ -270,6 +279,7 @@ local function flood_fill_async(surface, ex, ey, player_index)
         visited = {},
         player_index = player_index,
         surface = surface,
+        origin = { ex, ey },
     }
 end
 
@@ -286,6 +296,7 @@ local function process_flood_fill_queue(limit)
     local tile_queue = job.tile_queue
     local visited = job.visited
     local surface = job.surface
+    local ox, oy = job.origin[1], job.origin[2]
 
     local count = 0
 
@@ -300,6 +311,7 @@ local function process_flood_fill_queue(limit)
         if visited[key] then goto continue end
         visited[key] = true
 
+        if flood_distance(cx, cy, ox, oy) then goto continue end
         if is_archived(cx, cy) then goto check_adj end
         if is_flagged(cx, cy) then goto continue end
         if has_mine(cx, cy) then goto continue end
