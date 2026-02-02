@@ -96,6 +96,8 @@ local function get_evolution_dictionary(spawner)
         evos[e] = collected
     end
 
+    evos[0] = evos[1]
+
     return evos
 end
 
