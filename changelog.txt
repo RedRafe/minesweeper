@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.0
+Date: 2026.07.01
+  Changes:
+    - Updated to Factorio 2.1
+    - scripts/minesweeper.lua: LuaEntity::minable write was removed in 2.1; replaced `entity.minable = false` with `entity.minable_flag = false` in update_tile_entity
+---------------------------------------------------------------------------------------------------
 Version: 0.2.2
 Date: 2026.02.02
   Bugfixes:

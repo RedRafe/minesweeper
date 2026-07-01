@@ -762,7 +762,7 @@ function Msw.update_tile_entity(surface, ex, ey)
     local entity = surface.create_entity { name = proto, position = pos, force = FORCE_NAME }
     if entity then
         entity.destructible = false
-        entity.minable = false
+        entity.minable_flag = false
     end
 end
 

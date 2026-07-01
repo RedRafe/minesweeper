@@ -1,6 +1,6 @@
 {
   "name": "mine-sweeper",
-  "version": "0.2.2",
+  "version": "1.0.0",
   "title": "Minesweeper",
   "author": "RedRafe",
   "source": "https://github.com/RedRafe/minesweeper",
@@ -9,5 +9,5 @@
     "base >= 2.0"
   ],
   "description": "Minesweeper - in Factorio!",
-  "factorio_version": "2.0"
+  "factorio_version": "2.1"
 }
